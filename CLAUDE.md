@@ -1,0 +1,24 @@
+# Helios - Development Guide
+
+## Project
+Native macOS launcher (Swift + AppKit). See `PLAN.md` for full architecture and implementation plan.
+
+## Build & Test
+```
+swift build          # Build the project
+swift test           # Run tests
+swiftlint            # Lint Swift files
+swiftformat .        # Format Swift files
+```
+
+## Key Conventions
+- **Pure AppKit** — no SwiftUI, no storyboards, no XIBs. All UI is programmatic.
+- **Swift 6 concurrency** — `@MainActor` on all UI types, actors for shared mutable state, no `DispatchQueue.main.async` in new code.
+- **Provider pattern** — search domains are `SearchProvider` protocol implementations. Router dispatches to providers.
+- **Value types for data** — structs for models (`SearchResult`, etc.), classes only for AppKit subclasses and shared state.
+- **Dependency injection** — providers injected via initializer for testability.
+- **System colors only** — no hardcoded colors. Use `NSColor.textColor`, `.windowBackgroundColor`, etc. for dark mode support.
+
+## Code Review
+
+After completing a sizeable unit of work (finishing an implementation phase, adding a new provider, building a major UI component, or any change touching 3+ files), you MUST spawn the `audit` subagent before moving on. This is a project-specific subagent defined in `.claude/agents/audit.md` that reviews for Swift language quality, concurrency correctness, AppKit best practices, memory safety, architecture adherence, performance, accessibility, and macOS platform conventions. Fix any critical issues and improvements it raises before continuing work.

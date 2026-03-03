@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Edit",
+      "Write",
+      "Bash(swift build*)",
+      "Bash(swift run*)",
+      "Bash(swift test*)",
+      "Bash(swift package*)",
+      "Bash(xcodebuild*)",
+      "Bash(xcrun*)",
+      "Bash(swiftlint*)",
+      "Bash(swiftformat*)",
+      "Bash(ls*)",
+      "Bash(mkdir*)",
+      "Bash(cat*)",
+      "Bash(which*)",
+      "WebFetch(domain:developer.apple.com)",
+      "WebFetch(domain:swift.org)",
+      "WebFetch(domain:docs.swift.org)",
+      "WebFetch(domain:swiftpackageindex.com)",
+      "WebFetch(domain:swiftlang.github.io)"
+    ]
+  }
+}

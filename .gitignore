@@ -1,0 +1,15 @@
+# Swift Package Manager
+.build/
+Package.resolved
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/settings.local.json
