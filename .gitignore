@@ -8,6 +8,10 @@ Package.resolved
 xcuserdata/
 DerivedData/
 
+# Build artifacts
+Helios.app/
+Helios.app.zip
+
 # macOS
 .DS_Store
 

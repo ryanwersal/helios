@@ -1,0 +1,85 @@
+[tasks.build]
+description = "Build release binary and assemble .app bundle"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+swift build -c release
+
+APP="Helios.app"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+cp .build/release/Helios "$APP/Contents/MacOS/Helios"
+cp Sources/Helios/Resources/Info.plist "$APP/Contents/Info.plist"
+
+# Copy resource bundles
+for bundle in .build/release/*.bundle; do
+  [ -e "$bundle" ] || continue
+  cp -R "$bundle" "$APP/Contents/Resources/"
+done
+
+printf 'APPL????' > "$APP/Contents/PkgInfo"
+
+echo "Built $APP"
+"""
+
+[tasks.package]
+description = "Zip .app bundle for release"
+depends = ["build"]
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+rm -f Helios.app.zip
+ditto -c -k --sequesterRsrc --keepParent Helios.app Helios.app.zip
+
+echo "Packaged Helios.app.zip ($(du -h Helios.app.zip | cut -f1))"
+"""
+
+[tasks.release]
+description = "Create a GitHub release with the packaged app"
+depends = ["package"]
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+TAG="${GITHUB_REF_NAME:?GITHUB_REF_NAME must be set}"
+gh release create "$TAG" Helios.app.zip --title "$TAG"
+"""
+
+[tasks.update-tap]
+description = "Update the Homebrew tap with the latest release"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${TAP_TOKEN:?TAP_TOKEN must be set}"
+: "${GITHUB_REF_NAME:?GITHUB_REF_NAME must be set}"
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
+
+TAG="$GITHUB_REF_NAME"
+VERSION="${TAG#v}"
+
+gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "Helios.app.zip" --clobber
+
+if command -v sha256sum &>/dev/null; then
+  SHA256=$(sha256sum Helios.app.zip | cut -d ' ' -f 1)
+else
+  SHA256=$(shasum -a 256 Helios.app.zip | cut -d ' ' -f 1)
+fi
+
+git clone "https://x-access-token:${TAP_TOKEN}@github.com/ryanwersal/homebrew-tools.git" tap
+mkdir -p tap/Casks
+
+sed "s/{% raw %}{{VERSION}}{% endraw %}/${VERSION}/; s/{% raw %}{{SHA256}}{% endraw %}/${SHA256}/" Casks/helios.rb > tap/Casks/helios.rb
+
+cd tap
+git config user.name "github-actions[bot]"
+git config user.email "github-actions[bot]@users.noreply.github.com"
+git add Casks/helios.rb
+git commit -m "Update helios to ${VERSION}"
+git push
+
+echo "Updated tap to ${VERSION} (sha256: ${SHA256})"
+"""
