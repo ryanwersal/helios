@@ -21,6 +21,9 @@ done
 
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# Gatekeeper requires a signature covering the full bundle, not just the executable.
+codesign --force --deep --sign - "$APP"
+
 echo "Built $APP"
 """
 
