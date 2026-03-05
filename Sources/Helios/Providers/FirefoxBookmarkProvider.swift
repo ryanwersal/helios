@@ -6,13 +6,15 @@ struct Bookmark {
     let title: String
     let url: String
     let frecency: Int
+    let icon: NSImage?
     let titleLowercased: String
     let urlLowercased: String
 
-    init(title: String, url: String, frecency: Int) {
+    init(title: String, url: String, frecency: Int, icon: NSImage? = nil) {
         self.title = title
         self.url = url
         self.frecency = frecency
+        self.icon = icon
         self.titleLowercased = title.lowercased()
         self.urlLowercased = url.lowercased()
     }
@@ -57,12 +59,15 @@ final class FirefoxBookmarkProvider: SearchProvider {
                 }
             }
 
-            let icon = NSImage(systemSymbolName: "book", accessibilityDescription: "Bookmark")
+            let icon = bookmark.icon
+                ?? NSImage(systemSymbolName: "book", accessibilityDescription: "Bookmark")
+            let tintable = bookmark.icon == nil
 
             return SearchResult(
                 title: bookmark.title,
                 subtitle: bookmark.url,
                 icon: icon,
+                iconIsTintable: tintable,
                 action: .openURL(url),
                 relevance: score
             )
@@ -98,13 +103,9 @@ final class FirefoxBookmarkProvider: SearchProvider {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: tempDir) }
 
-            for ext in ["", "-wal", "-shm"] {
-                let src = sourceDir.appendingPathComponent("places.sqlite\(ext)")
-                let dst = tempDir.appendingPathComponent("places.sqlite\(ext)")
-                if FileManager.default.fileExists(atPath: src.path) {
-                    try FileManager.default.copyItem(at: src, to: dst)
-                }
-            }
+            try copySQLiteDatabase(named: "places.sqlite", from: sourceDir, to: tempDir)
+
+            let favicons = loadFavicons(sourceDir: sourceDir, tempDir: tempDir)
 
             let dbPath = tempDir.appendingPathComponent("places.sqlite").path
             let config = Configuration()
@@ -125,11 +126,100 @@ final class FirefoxBookmarkProvider: SearchProvider {
                       let url = row["url"] as? String
                 else { return nil }
                 let frecency = (row["frecency"] as? Int) ?? 0
-                return Bookmark(title: title, url: url, frecency: frecency)
+
+                var icon: NSImage?
+                if let match = favicons[url] {
+                    icon = match
+                } else if let parsed = URL(string: url), let host = parsed.host {
+                    icon = favicons["host:\(host)"]
+                }
+
+                return Bookmark(title: title, url: url, frecency: frecency, icon: icon)
             }
         } catch {
             NSLog("[Helios] Firefox bookmark refresh failed: %@", error.localizedDescription)
             return []
         }
+    }
+
+    // MARK: - Favicons
+
+    private nonisolated static func loadFavicons(
+        sourceDir: URL, tempDir: URL
+    ) -> [String: NSImage] {
+        let faviconsSource = sourceDir.appendingPathComponent("favicons.sqlite")
+        guard FileManager.default.fileExists(atPath: faviconsSource.path) else { return [:] }
+
+        do {
+            try copySQLiteDatabase(named: "favicons.sqlite", from: sourceDir, to: tempDir)
+
+            let dbPath = tempDir.appendingPathComponent("favicons.sqlite").path
+            let config = Configuration()
+            let dbQueue = try DatabaseQueue(path: dbPath, configuration: config)
+
+            let rows = try dbQueue.read { db in
+                try Row.fetchAll(db, sql: """
+                    SELECT p.page_url, i.data, i.width
+                    FROM moz_pages_w_icons p
+                    JOIN moz_icons_to_pages ip ON ip.page_id = p.id
+                    JOIN moz_icons i ON i.id = ip.icon_id
+                    WHERE i.data IS NOT NULL AND length(i.data) > 0
+                    ORDER BY i.width DESC
+                """)
+            }
+
+            var result: [String: NSImage] = [:]
+            for row in rows {
+                guard let pageURL = row["page_url"] as? String,
+                      let data = row["data"] as? Data,
+                      let image = NSImage(data: data)
+                else { continue }
+
+                let rendered = prerenderIcon(image)
+
+                // Keep largest icon per URL (rows ordered by width DESC, first write wins)
+                if result[pageURL] == nil {
+                    result[pageURL] = rendered
+                }
+
+                // Host-based fallback
+                if let parsed = URL(string: pageURL), let host = parsed.host {
+                    let hostKey = "host:\(host)"
+                    if result[hostKey] == nil {
+                        result[hostKey] = rendered
+                    }
+                }
+            }
+
+            return result
+        } catch {
+            NSLog("[Helios] Firefox favicon load failed: %@", error.localizedDescription)
+            return [:]
+        }
+    }
+
+    /// Copies a SQLite database and its WAL/SHM files from one directory to another.
+    private nonisolated static func copySQLiteDatabase(
+        named name: String, from sourceDir: URL, to destDir: URL
+    ) throws {
+        for ext in ["", "-wal", "-shm"] {
+            let src = sourceDir.appendingPathComponent("\(name)\(ext)")
+            let dst = destDir.appendingPathComponent("\(name)\(ext)")
+            if FileManager.default.fileExists(atPath: src.path) {
+                try FileManager.default.copyItem(at: src, to: dst)
+            }
+        }
+    }
+
+    /// Pre-renders a favicon to a fixed-size bitmap for instant display.
+    private nonisolated static func prerenderIcon(_ source: NSImage) -> NSImage {
+        let pointSize: CGFloat = 28
+        let targetSize = NSSize(width: pointSize, height: pointSize)
+        let copy = source.copy() as! NSImage
+        copy.size = targetSize
+        guard let cgImage = copy.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return copy
+        }
+        return NSImage(cgImage: cgImage, size: targetSize)
     }
 }

@@ -76,6 +76,13 @@ struct FirefoxProfileLocator {
         return FileManager.default.fileExists(atPath: places.path) ? places : nil
     }
 
+    /// Find the favicons.sqlite file within the profile directory.
+    static func faviconsDatabase() -> URL? {
+        guard let profile = defaultProfilePath() else { return nil }
+        let favicons = profile.appendingPathComponent("favicons.sqlite")
+        return FileManager.default.fileExists(atPath: favicons.path) ? favicons : nil
+    }
+
     private static func resolvedProfileURL(path: String, isRelative: Bool, supportDir: URL) -> URL {
         if isRelative {
             return supportDir.appendingPathComponent(path)
