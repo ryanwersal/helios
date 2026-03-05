@@ -1,5 +1,5 @@
-import Carbon
 import AppKit
+import Carbon
 
 /// Lightweight global hotkey registration using Carbon APIs.
 /// Uses a static callback table to avoid retain cycles with the Carbon event system.
@@ -34,7 +34,7 @@ final class GlobalHotkey {
         let hotkeyIDSpec = EventHotKeyID(signature: fourCharCode("HELI"), id: hotkeyID)
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
-                                       eventKind: UInt32(kEventHotKeyPressed))
+                                      eventKind: UInt32(kEventHotKeyPressed))
 
         InstallEventHandler(
             GetApplicationEventTarget(),
@@ -47,7 +47,7 @@ final class GlobalHotkey {
                     nil,
                     MemoryLayout<EventHotKeyID>.size,
                     nil,
-                    &hotkeyIDOut
+                    &hotkeyIDOut,
                 )
                 guard status == noErr else { return OSStatus(eventNotHandledErr) }
                 // Carbon hotkey events always fire on the main thread
@@ -59,7 +59,7 @@ final class GlobalHotkey {
             1,
             &eventType,
             nil,
-            &eventHandler
+            &eventHandler,
         )
 
         RegisterEventHotKey(keyCode, modifiers, hotkeyIDSpec,

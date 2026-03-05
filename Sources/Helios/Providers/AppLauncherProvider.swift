@@ -8,7 +8,7 @@ struct AppInfo {
 
     init(name: String, url: URL, icon: NSImage) {
         self.name = name
-        self.nameLowercased = name.lowercased()
+        nameLowercased = name.lowercased()
         self.url = url
         self.icon = icon
     }
@@ -24,7 +24,7 @@ final class AppLauncherProvider: SearchProvider {
         }
     }
 
-    func canHandle(query: String) -> Bool {
+    func canHandle(query _: String) -> Bool {
         true
     }
 
@@ -49,10 +49,8 @@ final class AppLauncherProvider: SearchProvider {
 
             score += max(0, 100 - Double(app.name.count))
 
-            for term in terms {
-                if app.nameLowercased.contains(term) {
-                    score += 50
-                }
+            for term in terms where app.nameLowercased.contains(term) {
+                score += 50
             }
 
             return SearchResult(
@@ -61,7 +59,7 @@ final class AppLauncherProvider: SearchProvider {
                 icon: app.icon,
                 iconIsTintable: false,
                 action: .openURL(app.url),
-                relevance: score
+                relevance: score,
             )
         }
     }
@@ -99,7 +97,7 @@ final class AppLauncherProvider: SearchProvider {
     private nonisolated static func prerenderIcon(_ source: NSImage) -> NSImage {
         let pointSize: CGFloat = 28
         let targetSize = NSSize(width: pointSize, height: pointSize)
-        let copy = source.copy() as! NSImage
+        guard let copy = source.copy() as? NSImage else { return source }
         copy.size = targetSize
         guard let cgImage = copy.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return copy
@@ -111,7 +109,7 @@ final class AppLauncherProvider: SearchProvider {
         guard depth < 3 else { return }
 
         guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+            at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles],
         ) else { return }
 
         for entry in entries {

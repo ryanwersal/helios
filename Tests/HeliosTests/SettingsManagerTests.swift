@@ -1,5 +1,5 @@
-import Testing
 @testable import Helios
+import Testing
 
 @MainActor
 private final class MockLoginItemService: LoginItemService {
@@ -26,10 +26,9 @@ private final class MockLoginItemService: LoginItemService {
 }
 
 @MainActor
-@Suite("SettingsManager")
 struct SettingsManagerTests {
-    @Test("launchAtLogin reads from service")
-    func readsFromService() {
+    @Test
+    func `launchAtLogin reads from service`() {
         let mock = MockLoginItemService()
         let manager = SettingsManager(loginItemService: mock)
 
@@ -39,8 +38,8 @@ struct SettingsManagerTests {
         #expect(manager.launchAtLogin)
     }
 
-    @Test("setting launchAtLogin to true calls register")
-    func enableCallsRegister() {
+    @Test
+    func `setting launchAtLogin to true calls register`() {
         let mock = MockLoginItemService()
         let manager = SettingsManager(loginItemService: mock)
 
@@ -50,8 +49,8 @@ struct SettingsManagerTests {
         #expect(mock.isEnabled)
     }
 
-    @Test("setting launchAtLogin to false calls unregister")
-    func disableCallsUnregister() {
+    @Test
+    func `setting launchAtLogin to false calls unregister`() {
         let mock = MockLoginItemService()
         mock.isEnabled = true
         let manager = SettingsManager(loginItemService: mock)
@@ -62,8 +61,8 @@ struct SettingsManagerTests {
         #expect(!mock.isEnabled)
     }
 
-    @Test("launchAtLogin handles register failure gracefully")
-    func registerFailureDoesNotCrash() {
+    @Test
+    func `launchAtLogin handles register failure gracefully`() {
         let mock = MockLoginItemService()
         mock.shouldThrow = true
         let manager = SettingsManager(loginItemService: mock)
@@ -74,8 +73,8 @@ struct SettingsManagerTests {
         #expect(!mock.isEnabled)
     }
 
-    @Test("launchAtLogin handles unregister failure gracefully")
-    func unregisterFailureDoesNotCrash() {
+    @Test
+    func `launchAtLogin handles unregister failure gracefully`() {
         let mock = MockLoginItemService()
         mock.isEnabled = true
         mock.shouldThrow = true

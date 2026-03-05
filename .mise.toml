@@ -86,3 +86,19 @@ git push
 
 echo "Updated tap to ${VERSION} (sha256: ${SHA256})"
 """
+
+[tasks.lint]
+description = "Lint Swift files"
+run = "swiftlint lint --strict Sources Tests"
+
+[tasks.format]
+description = "Format Swift files"
+run = "swiftformat Sources Tests"
+
+[tasks.format-check]
+description = "Check Swift formatting without modifying files"
+run = "swiftformat Sources Tests --lint"
+
+[tools]
+swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }
+swiftlint = "latest"

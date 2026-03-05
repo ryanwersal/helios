@@ -1,15 +1,14 @@
 import Foundation
-import Testing
 @testable import Helios
+import Testing
 
-@Suite("FirefoxProfileLocator")
 struct FirefoxProfileLocatorTests {
     private let supportDir = URL(fileURLWithPath: "/fake/Firefox")
 
     // MARK: - Install section handling (modern Firefox)
 
     @Test("Install section Default is preferred over Profile section Default=1")
-    func installPreferredOverProfile() {
+    func installSectionPreferred() {
         let ini = """
         [Profile0]
         Name=default
@@ -25,7 +24,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Install section path resolved relative to supportDir")
-    func installPathRelativeToSupportDir() {
+    func installSectionRelativePath() {
         let ini = """
         [InstallABCDEF123456]
         Default=Profiles/abc123.default-release
@@ -48,7 +47,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Install section with other keys correctly extracts Default")
-    func installSectionWithOtherKeys() {
+    func installSectionExtractsDefault() {
         let ini = """
         [Install2656FF1E876E9973]
         Default=Profiles/abc.default-release
@@ -61,7 +60,7 @@ struct FirefoxProfileLocatorTests {
     // MARK: - Profile section handling (legacy Firefox)
 
     @Test("Profile section with Default=1 returns its Path")
-    func profileDefaultReturnsPath() {
+    func profileSectionDefault() {
         let ini = """
         [Profile0]
         Name=default
@@ -74,7 +73,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Relative path with IsRelative=1")
-    func relativePathResolution() {
+    func relativePath() {
         let ini = """
         [Profile0]
         Path=Profiles/rel.default
@@ -86,7 +85,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Absolute path with IsRelative=0")
-    func absolutePathResolution() {
+    func absolutePath() {
         let ini = """
         [Profile0]
         Path=/absolute/path/to/profile
@@ -139,7 +138,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("First Default=1 profile wins when multiple exist")
-    func firstDefaultProfileWins() {
+    func firstDefaultWins() {
         let ini = """
         [Profile0]
         Name=first
@@ -160,13 +159,13 @@ struct FirefoxProfileLocatorTests {
     // MARK: - Edge cases
 
     @Test("Empty string returns nil")
-    func emptyString() {
+    func emptyStringReturnsNil() {
         let result = FirefoxProfileLocator.parseDefaultProfile(from: "", supportDir: supportDir)
         #expect(result == nil)
     }
 
     @Test("No Install or Profile defaults returns nil")
-    func noDefaults() {
+    func noDefaultsReturnsNil() {
         let ini = """
         [General]
         StartWithLastProfile=1
@@ -182,7 +181,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Profile with Default=1 but no Path returns nil")
-    func defaultWithoutPath() {
+    func defaultWithoutPathReturnsNil() {
         let ini = """
         [Profile0]
         Name=default
@@ -194,7 +193,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Section with Path but no Default=1 is skipped")
-    func pathWithoutDefault() {
+    func pathWithoutDefaultSkipped() {
         let ini = """
         [Profile0]
         Name=default
@@ -206,7 +205,7 @@ struct FirefoxProfileLocatorTests {
     }
 
     @Test("Leading and trailing whitespace in lines is handled")
-    func whitespaceInLines() {
+    func whitespaceHandled() {
         let ini = """
           [Profile0]
           Path=Profiles/ws.default

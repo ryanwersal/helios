@@ -1,6 +1,6 @@
 import Foundation
 
-struct FirefoxProfileLocator {
+enum FirefoxProfileLocator {
     static let firefoxSupportDir = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Firefox")
 
@@ -20,7 +20,7 @@ struct FirefoxProfileLocator {
 
     /// Parses Firefox profiles.ini content and returns the URL of the default
     /// profile directory, resolved against the given support directory.
-    internal static func parseDefaultProfile(from contents: String, supportDir: URL) -> URL? {
+    static func parseDefaultProfile(from contents: String, supportDir: URL) -> URL? {
         var installDefault: String?
         var profileDefault: URL?
 
@@ -36,7 +36,7 @@ struct FirefoxProfileLocator {
                 // Finalize previous section
                 if !inInstallSection, foundDefault, let path = currentPath, profileDefault == nil {
                     profileDefault = resolvedProfileURL(
-                        path: path, isRelative: currentIsRelative, supportDir: supportDir
+                        path: path, isRelative: currentIsRelative, supportDir: supportDir,
                     )
                 }
                 inInstallSection = trimmed.hasPrefix("[Install")
@@ -57,7 +57,7 @@ struct FirefoxProfileLocator {
         // Finalize last section
         if !inInstallSection, foundDefault, let path = currentPath, profileDefault == nil {
             profileDefault = resolvedProfileURL(
-                path: path, isRelative: currentIsRelative, supportDir: supportDir
+                path: path, isRelative: currentIsRelative, supportDir: supportDir,
             )
         }
 
@@ -85,16 +85,16 @@ struct FirefoxProfileLocator {
 
     private static func resolvedProfileURL(path: String, isRelative: Bool, supportDir: URL) -> URL {
         if isRelative {
-            return supportDir.appendingPathComponent(path)
+            supportDir.appendingPathComponent(path)
         } else {
-            return URL(fileURLWithPath: path)
+            URL(fileURLWithPath: path)
         }
     }
 
     private static func fallbackProfilePath() -> URL? {
         let profilesDir = firefoxSupportDir.appendingPathComponent("Profiles")
         guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: profilesDir, includingPropertiesForKeys: nil
+            at: profilesDir, includingPropertiesForKeys: nil,
         ) else {
             return nil
         }

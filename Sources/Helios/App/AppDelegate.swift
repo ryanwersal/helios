@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var hotkey: GlobalHotkey?
     private var settingsManager: SettingsManager!
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         setupMenuBar()
         setupPanel()
         setupRouter()
@@ -67,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
             modifiers: UInt32(optionKey),
             callback: { [weak self] in
                 self?.panel.toggle()
-            }
+            },
         )
     }
 

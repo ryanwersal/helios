@@ -1,6 +1,6 @@
 import Foundation
 
-struct TimezoneMap {
+enum TimezoneMap {
     /// Map of common city names and abbreviations to IANA timezone identifiers.
     static let cityToTimezone: [String: String] = [
         // North America

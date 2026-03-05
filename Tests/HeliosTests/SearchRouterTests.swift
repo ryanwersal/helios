@@ -1,5 +1,5 @@
-import Testing
 @testable import Helios
+import Testing
 
 @MainActor
 private final class MockProvider: SearchProvider {
@@ -21,23 +21,22 @@ private final class MockProvider: SearchProvider {
             subtitle: query,
             icon: nil,
             action: .none,
-            relevance: score
+            relevance: score,
         )]
     }
 }
 
 @MainActor
-@Suite("SearchRouter")
 struct SearchRouterTests {
-    @Test("empty query returns no results")
-    func emptyQuery() {
+    @Test
+    func `empty query returns no results`() {
         let router = SearchRouter(providers: [MockProvider(prefix: "a")])
         let results = router.search(query: "")
         #expect(results.isEmpty)
     }
 
-    @Test("dispatches to matching provider")
-    func matchingProvider() {
+    @Test
+    func `dispatches to matching provider`() {
         let router = SearchRouter(providers: [
             MockProvider(prefix: "foo"),
             MockProvider(prefix: "bar"),
@@ -47,8 +46,8 @@ struct SearchRouterTests {
         #expect(results[0].title == "foo result")
     }
 
-    @Test("returns results from multiple matching providers")
-    func multipleProviders() {
+    @Test
+    func `returns results from multiple matching providers`() {
         let router = SearchRouter(providers: [
             MockProvider(prefix: "a", score: 50),
             MockProvider(prefix: "a", score: 100),
@@ -57,8 +56,8 @@ struct SearchRouterTests {
         #expect(results.count == 2)
     }
 
-    @Test("sorts results by relevance descending")
-    func sortsByRelevance() {
+    @Test
+    func `sorts results by relevance descending`() {
         let router = SearchRouter(providers: [
             MockProvider(prefix: "a", score: 50),
             MockProvider(prefix: "a", score: 200),
@@ -68,8 +67,8 @@ struct SearchRouterTests {
         #expect(results[0].relevance > results[1].relevance)
     }
 
-    @Test("no providers match returns empty")
-    func noMatch() {
+    @Test
+    func `no providers match returns empty`() {
         let router = SearchRouter(providers: [
             MockProvider(prefix: "foo"),
         ])

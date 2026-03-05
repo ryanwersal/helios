@@ -20,7 +20,7 @@ struct SearchResult {
         icon: NSImage?,
         iconIsTintable: Bool = true,
         action: SearchResultAction,
-        relevance: Double
+        relevance: Double,
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -35,9 +35,9 @@ struct SearchResult {
 enum SearchResultActionHandler {
     static func execute(_ action: SearchResultAction) {
         switch action {
-        case .openURL(let url):
+        case let .openURL(url):
             NSWorkspace.shared.open(url)
-        case .copyToClipboard(let text):
+        case let .copyToClipboard(text):
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
         case .none:

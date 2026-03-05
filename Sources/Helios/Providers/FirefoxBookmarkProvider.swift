@@ -15,8 +15,8 @@ struct Bookmark {
         self.url = url
         self.frecency = frecency
         self.icon = icon
-        self.titleLowercased = title.lowercased()
-        self.urlLowercased = url.lowercased()
+        titleLowercased = title.lowercased()
+        urlLowercased = url.lowercased()
     }
 }
 
@@ -33,7 +33,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
         }
     }
 
-    func canHandle(query: String) -> Bool {
+    func canHandle(query _: String) -> Bool {
         true
     }
 
@@ -69,7 +69,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
                 icon: icon,
                 iconIsTintable: tintable,
                 action: .openURL(url),
-                relevance: score
+                relevance: score,
             )
         }
     }
@@ -77,8 +77,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
     // MARK: - Background Refresh
 
     private func startTimer() {
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) {
-            [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.refreshInBackground()
             }
@@ -111,8 +110,8 @@ final class FirefoxBookmarkProvider: SearchProvider {
             let config = Configuration()
             let dbQueue = try DatabaseQueue(path: dbPath, configuration: config)
 
-            let rows = try dbQueue.read { db in
-                try Row.fetchAll(db, sql: """
+            let rows = try dbQueue.read { database in
+                try Row.fetchAll(database, sql: """
                     SELECT b.title, p.url, p.frecency
                     FROM moz_bookmarks b
                     JOIN moz_places p ON b.fk = p.id
@@ -145,7 +144,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
     // MARK: - Favicons
 
     private nonisolated static func loadFavicons(
-        sourceDir: URL, tempDir: URL
+        sourceDir: URL, tempDir: URL,
     ) -> [String: NSImage] {
         let faviconsSource = sourceDir.appendingPathComponent("favicons.sqlite")
         guard FileManager.default.fileExists(atPath: faviconsSource.path) else { return [:] }
@@ -157,8 +156,8 @@ final class FirefoxBookmarkProvider: SearchProvider {
             let config = Configuration()
             let dbQueue = try DatabaseQueue(path: dbPath, configuration: config)
 
-            let rows = try dbQueue.read { db in
-                try Row.fetchAll(db, sql: """
+            let rows = try dbQueue.read { database in
+                try Row.fetchAll(database, sql: """
                     SELECT p.page_url, i.data, i.width
                     FROM moz_pages_w_icons p
                     JOIN moz_icons_to_pages ip ON ip.page_id = p.id
@@ -200,7 +199,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
 
     /// Copies a SQLite database and its WAL/SHM files from one directory to another.
     private nonisolated static func copySQLiteDatabase(
-        named name: String, from sourceDir: URL, to destDir: URL
+        named name: String, from sourceDir: URL, to destDir: URL,
     ) throws {
         for ext in ["", "-wal", "-shm"] {
             let src = sourceDir.appendingPathComponent("\(name)\(ext)")
@@ -215,7 +214,7 @@ final class FirefoxBookmarkProvider: SearchProvider {
     private nonisolated static func prerenderIcon(_ source: NSImage) -> NSImage {
         let pointSize: CGFloat = 28
         let targetSize = NSSize(width: pointSize, height: pointSize)
-        let copy = source.copy() as! NSImage
+        guard let copy = source.copy() as? NSImage else { return source }
         copy.size = targetSize
         guard let cgImage = copy.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return copy

@@ -19,7 +19,7 @@ final class SearchField: NSTextField {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -43,11 +43,11 @@ final class SearchField: NSTextField {
 }
 
 extension SearchField: NSTextFieldDelegate {
-    func controlTextDidChange(_ obj: Notification) {
+    func controlTextDidChange(_: Notification) {
         searchDelegate?.searchFieldDidChange(text: stringValue)
     }
 
-    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+    func control(_: NSControl, textView _: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         switch commandSelector {
         case #selector(moveDown(_:)):
             searchDelegate?.searchFieldDidPressArrowDown()

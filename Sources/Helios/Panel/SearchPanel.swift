@@ -46,7 +46,7 @@ final class SearchPanel: NSPanel {
             contentRect: initialFrame,
             styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
 
         configurePanel()
@@ -110,6 +110,10 @@ final class SearchPanel: NSPanel {
         contextBarView.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(contextBarView)
 
+        activateLayoutConstraints(contentView: contentView)
+    }
+
+    private func activateLayoutConstraints(contentView: NSView) {
         NSLayoutConstraint.activate([
             containerView.topAnchor.constraint(equalTo: contentView.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -157,9 +161,9 @@ final class SearchPanel: NSPanel {
     func positionOnScreen() {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.midX - Self.panelWidth / 2
-        let y = screenFrame.maxY - frame.height - screenFrame.height * 0.2
-        setFrameOrigin(NSPoint(x: x, y: y))
+        let originX = screenFrame.midX - Self.panelWidth / 2
+        let originY = screenFrame.maxY - frame.height - screenFrame.height * 0.2
+        setFrameOrigin(NSPoint(x: originX, y: originY))
     }
 
     // MARK: - Empty State
@@ -195,7 +199,7 @@ final class SearchPanel: NSPanel {
     }
 
     private func setPanelHeight(_ totalHeight: CGFloat) {
-        var frame = self.frame
+        var frame = frame
         let oldHeight = frame.height
         frame.size.height = totalHeight
         frame.origin.y += oldHeight - totalHeight
@@ -284,14 +288,15 @@ final class SearchPanel: NSPanel {
         }
     }
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool {
+        true
+    }
 
-    override func cancelOperation(_ sender: Any?) {
+    override func cancelOperation(_: Any?) {
         if mode == .settings {
             showSearch()
         }
     }
-
 }
 
 // MARK: - Appearance-Aware Container View
@@ -307,7 +312,7 @@ private final class AppearanceAwareView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 

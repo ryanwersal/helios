@@ -19,7 +19,7 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -63,13 +63,13 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
 
     // MARK: - Data Source
 
-    func numberOfRows(in tableView: NSTableView) -> Int {
+    func numberOfRows(in _: NSTableView) -> Int {
         results.count
     }
 
     // MARK: - Delegate
 
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+    func tableView(_: NSTableView, viewFor _: NSTableColumn?, row: Int) -> NSView? {
         guard row < results.count else { return nil }
         let result = results[row]
 
@@ -86,11 +86,11 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
         return cell
     }
 
-    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    func tableView(_: NSTableView, heightOfRow _: Int) -> CGFloat {
         SearchPanel.resultRowHeight
     }
 
-    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+    func tableView(_: NSTableView, rowViewForRow _: Int) -> NSTableRowView? {
         let id = NSUserInterfaceItemIdentifier("SelectionRow")
         if let reused = makeView(withIdentifier: id, owner: nil) as? SelectionRowView {
             return reused
@@ -115,7 +115,7 @@ final class ResultCellView: NSTableCellView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -168,7 +168,7 @@ final class ResultCellView: NSTableCellView {
 
 @MainActor
 private final class SelectionRowView: NSTableRowView {
-    override func drawSelection(in dirtyRect: NSRect) {
+    override func drawSelection(in _: NSRect) {
         guard isSelected else { return }
         let rect = bounds.insetBy(dx: 6, dy: 1)
         let path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)

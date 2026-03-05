@@ -3,60 +3,62 @@ import Foundation
 
 @MainActor
 final class DateTimeProvider: SearchProvider {
-    private static let timeInPattern = try! NSRegularExpression(
-        pattern: #"^time\s+in\s+(.+)$"#, options: .caseInsensitive
+    private static let timeInPattern = makeRegex(#"^time\s+in\s+(.+)$"#)
+    private static let convertPattern = makeRegex(
+        #"^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(\S+)\s+in\s+(.+)$"#,
     )
-    private static let convertPattern = try! NSRegularExpression(
-        pattern: #"^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(\S+)\s+in\s+(.+)$"#,
-        options: .caseInsensitive
+    private static let fromNowPattern = makeRegex(
+        #"^(\d+)\s+(minute|hour|day|week|month|year)s?\s+from\s+now$"#,
     )
-    private static let fromNowPattern = try! NSRegularExpression(
-        pattern: #"^(\d+)\s+(minute|hour|day|week|month|year)s?\s+from\s+now$"#,
-        options: .caseInsensitive
-    )
-    private static let daysUntilPattern = try! NSRegularExpression(
-        pattern: #"^days?\s+until\s+(.+)$"#, options: .caseInsensitive
-    )
+    private static let daysUntilPattern = makeRegex(#"^days?\s+until\s+(.+)$"#)
+
+    private static func makeRegex(_ pattern: String) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+        } catch {
+            fatalError("Invalid regex: \(pattern)")
+        }
+    }
 
     private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "h:mm a (ZZZZZ)"
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a (ZZZZZ)"
+        return formatter
     }()
 
     private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMM d"
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter
     }()
 
     private static let convertTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "h:mm a"
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
     }()
 
     private static let fullDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .none
-        return f
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        return formatter
     }()
 
     private static let fullDateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .short
-        return f
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .short
+        return formatter
     }()
 
     private static let parseFormatters: [(format: String, formatter: DateFormatter)] = {
         let formats = ["h:mm a", "h:mma", "ha", "h a", "HH:mm", "H:mm"]
         return formats.map { format in
-            let f = DateFormatter()
-            f.dateFormat = format
-            f.locale = Locale(identifier: "en_US_POSIX")
-            return (format, f)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = format
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            return (format, dateFormatter)
         }
     }()
 
@@ -67,37 +69,37 @@ final class DateTimeProvider: SearchProvider {
             "MMM d", "MMMM d",
         ]
         return formats.map { format in
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = format
-            return (format, f)
+            let dateFormatter = DateFormatter()
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateFormatter.dateFormat = format
+            return (format, dateFormatter)
         }
     }()
 
     func canHandle(query: String) -> Bool {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        let range = NSRange(q.startIndex..., in: q)
-        return Self.timeInPattern.firstMatch(in: q, range: range) != nil
-            || Self.convertPattern.firstMatch(in: q, range: range) != nil
-            || Self.fromNowPattern.firstMatch(in: q, range: range) != nil
-            || Self.daysUntilPattern.firstMatch(in: q, range: range) != nil
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        return Self.timeInPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.convertPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.fromNowPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.daysUntilPattern.firstMatch(in: trimmed, range: range) != nil
     }
 
     func search(query: String) -> [SearchResult] {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        let range = NSRange(q.startIndex..., in: q)
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
 
-        if let match = Self.timeInPattern.firstMatch(in: q, range: range) {
-            return handleTimeIn(query: q, match: match)
+        if let match = Self.timeInPattern.firstMatch(in: trimmed, range: range) {
+            return handleTimeIn(query: trimmed, match: match)
         }
-        if let match = Self.convertPattern.firstMatch(in: q, range: range) {
-            return handleConvert(query: q, match: match)
+        if let match = Self.convertPattern.firstMatch(in: trimmed, range: range) {
+            return handleConvert(query: trimmed, match: match)
         }
-        if let match = Self.fromNowPattern.firstMatch(in: q, range: range) {
-            return handleFromNow(query: q, match: match)
+        if let match = Self.fromNowPattern.firstMatch(in: trimmed, range: range) {
+            return handleFromNow(query: trimmed, match: match)
         }
-        if let match = Self.daysUntilPattern.firstMatch(in: q, range: range) {
-            return handleDaysUntil(query: q, match: match)
+        if let match = Self.daysUntilPattern.firstMatch(in: trimmed, range: range) {
+            return handleDaysUntil(query: trimmed, match: match)
         }
 
         return []
@@ -108,12 +110,12 @@ final class DateTimeProvider: SearchProvider {
     private func handleTimeIn(query: String, match: NSTextCheckingResult) -> [SearchResult] {
         guard let cityRange = Range(match.range(at: 1), in: query) else { return [] }
         let city = String(query[cityRange])
-        guard let tz = TimezoneMap.timezone(for: city) else { return [] }
+        guard let zone = TimezoneMap.timezone(for: city) else { return [] }
 
-        Self.timeFormatter.timeZone = tz
+        Self.timeFormatter.timeZone = zone
         let timeStr = Self.timeFormatter.string(from: Date())
 
-        Self.dayFormatter.timeZone = tz
+        Self.dayFormatter.timeZone = zone
         let dayStr = Self.dayFormatter.string(from: Date())
 
         let icon = NSImage(systemSymbolName: "clock", accessibilityDescription: "Time")
@@ -121,10 +123,10 @@ final class DateTimeProvider: SearchProvider {
 
         return [SearchResult(
             title: resultText,
-            subtitle: "\(city.capitalized) (\(tz.identifier))",
+            subtitle: "\(city.capitalized) (\(zone.identifier))",
             icon: icon,
             action: .copyToClipboard(resultText),
-            relevance: 10000
+            relevance: 10000,
         )]
     }
 
@@ -157,7 +159,7 @@ final class DateTimeProvider: SearchProvider {
             subtitle: "\(timeStr) \(fromCity.uppercased()) → \(toCity.capitalized) (\(toTZ.identifier))",
             icon: icon,
             action: .copyToClipboard(resultText),
-            relevance: 10000
+            relevance: 10000,
         )]
     }
 
@@ -197,7 +199,7 @@ final class DateTimeProvider: SearchProvider {
             subtitle: "\(num) \(unit)\(num == 1 ? "" : "s") from now",
             icon: icon,
             action: .copyToClipboard(resultText),
-            relevance: 10000
+            relevance: 10000,
         )]
     }
 
@@ -216,15 +218,14 @@ final class DateTimeProvider: SearchProvider {
 
         guard let days = components.day else { return [] }
 
-        let resultText: String
-        if days == 0 {
-            resultText = "Today!"
+        let resultText = if days == 0 {
+            "Today!"
         } else if days == 1 {
-            resultText = "Tomorrow (1 day)"
+            "Tomorrow (1 day)"
         } else if days > 0 {
-            resultText = "\(days) days"
+            "\(days) days"
         } else {
-            resultText = "\(abs(days)) days ago"
+            "\(abs(days)) days ago"
         }
 
         let icon = NSImage(systemSymbolName: "calendar.badge.clock", accessibilityDescription: "Countdown")
@@ -234,19 +235,19 @@ final class DateTimeProvider: SearchProvider {
             subtitle: "Days until \(dateStr)",
             icon: icon,
             action: .copyToClipboard(resultText),
-            relevance: 10000
+            relevance: 10000,
         )]
     }
 
     // MARK: - Helpers
 
-    private func parseTime(_ str: String, in tz: TimeZone) -> Date? {
+    private func parseTime(_ str: String, in zone: TimeZone) -> Date? {
         for (_, formatter) in Self.parseFormatters {
-            formatter.timeZone = tz
+            formatter.timeZone = zone
             if let date = formatter.date(from: str) {
                 let calendar = Calendar.current
-                var comps = calendar.dateComponents(in: tz, from: Date())
-                let timeComps = calendar.dateComponents(in: tz, from: date)
+                var comps = calendar.dateComponents(in: zone, from: Date())
+                let timeComps = calendar.dateComponents(in: zone, from: date)
                 comps.hour = timeComps.hour
                 comps.minute = timeComps.minute
                 comps.second = 0

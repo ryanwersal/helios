@@ -10,10 +10,8 @@ final class SearchRouter {
         guard !query.isEmpty else { return [] }
 
         var results: [SearchResult] = []
-        for provider in providers {
-            if provider.canHandle(query: query) {
-                results.append(contentsOf: provider.search(query: query))
-            }
+        for provider in providers where provider.canHandle(query: query) {
+            results.append(contentsOf: provider.search(query: query))
         }
 
         results.sort { $0.relevance > $1.relevance }

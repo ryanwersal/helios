@@ -37,12 +37,11 @@ final class CalculatorProvider: SearchProvider {
             let expression = AnyExpression(expr, constants: Self.constants)
             let result: Double = try expression.evaluate()
 
-            let formatted: String
-            if result == result.rounded() && abs(result) < 1e15 {
-                formatted = String(format: "%.0f", result)
+            let formatted = if result == result.rounded(), abs(result) < 1e15 {
+                String(format: "%.0f", result)
             } else {
                 // Remove trailing zeros
-                formatted = String(format: "%.10g", result)
+                String(format: "%.10g", result)
             }
 
             let icon = NSImage(systemSymbolName: "equal.circle", accessibilityDescription: "Calculator")
@@ -52,7 +51,7 @@ final class CalculatorProvider: SearchProvider {
                 subtitle: "Press Enter to copy",
                 icon: icon,
                 action: .copyToClipboard(formatted),
-                relevance: 10000 // Calculator always on top
+                relevance: 10000, // Calculator always on top
             )]
         } catch {
             return []
