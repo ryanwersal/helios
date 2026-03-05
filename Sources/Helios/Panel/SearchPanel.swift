@@ -1,5 +1,10 @@
 import AppKit
 
+enum PanelMode {
+    case search
+    case settings
+}
+
 @MainActor
 final class SearchPanel: NSPanel {
     static let panelWidth: CGFloat = 680
@@ -7,25 +12,31 @@ final class SearchPanel: NSPanel {
     static let resultRowHeight: CGFloat = 48
     static let maxVisibleResults = 8
     static let emptyStateHeight: CGFloat = 160
+    static let settingsHeight: CGFloat = 160
     static let contextBarHeight: CGFloat = ContextBarView.height
 
     let searchField: SearchField
     let resultsTableView: ResultsTableView
 
     private let containerView: AppearanceAwareView
+    private let searchIcon: NSImageView
     private let scrollView: NSScrollView
     private let separatorView: NSBox
     private let emptyStateView: EmptyStateView
+    private let settingsView: SettingsView
     private let contextBarView: ContextBarView
     private let resultsHeightConstraint: NSLayoutConstraint
+    private var mode: PanelMode = .search
 
-    init() {
+    init(settingsManager: SettingsManager) {
         searchField = SearchField()
         resultsTableView = ResultsTableView()
         containerView = AppearanceAwareView()
+        searchIcon = NSImageView()
         scrollView = NSScrollView()
         separatorView = NSBox()
         emptyStateView = EmptyStateView()
+        settingsView = SettingsView(settingsManager: settingsManager)
         contextBarView = ContextBarView()
 
         let initialFrame = NSRect(x: 0, y: 0, width: Self.panelWidth, height: Self.searchFieldHeight)
@@ -66,7 +77,6 @@ final class SearchPanel: NSPanel {
         containerView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(containerView)
 
-        let searchIcon = NSImageView()
         searchIcon.translatesAutoresizingMaskIntoConstraints = false
         searchIcon.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Search")
         searchIcon.contentTintColor = .tertiaryLabelColor
@@ -92,6 +102,10 @@ final class SearchPanel: NSPanel {
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
         containerView.addSubview(scrollView)
+
+        settingsView.translatesAutoresizingMaskIntoConstraints = false
+        settingsView.isHidden = true
+        containerView.addSubview(settingsView)
 
         contextBarView.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(contextBarView)
@@ -125,6 +139,11 @@ final class SearchPanel: NSPanel {
             scrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             resultsHeightConstraint,
+
+            settingsView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            settingsView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            settingsView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            settingsView.bottomAnchor.constraint(equalTo: contextBarView.topAnchor),
 
             contextBarView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             contextBarView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
@@ -183,6 +202,52 @@ final class SearchPanel: NSPanel {
         setFrame(frame, display: true, animate: false)
     }
 
+    // MARK: - Panel Mode
+
+    func showSettings() {
+        mode = .settings
+
+        // Hide search UI
+        searchIcon.isHidden = true
+        searchField.isHidden = true
+        separatorView.isHidden = true
+        emptyStateView.isHidden = true
+        scrollView.isHidden = true
+
+        // Show settings
+        settingsView.isHidden = false
+        settingsView.refresh()
+        contextBarView.updateForMode(.settings)
+
+        setPanelHeight(Self.settingsHeight + Self.contextBarHeight)
+        positionOnScreen()
+
+        // Make the panel first responder so Escape triggers cancelOperation
+        makeFirstResponder(nil)
+    }
+
+    func showSearch() {
+        mode = .search
+
+        // Hide settings
+        settingsView.isHidden = true
+
+        // Restore search UI
+        searchIcon.isHidden = false
+        searchField.isHidden = false
+        contextBarView.updateForMode(.search)
+
+        showEmptyState()
+        searchField.stringValue = ""
+        resultsTableView.results = []
+        searchField.focusAndSelectAll()
+        positionOnScreen()
+    }
+
+    func setSettingsHandler(_ handler: @escaping () -> Void) {
+        contextBarView.onSettingsButtonPressed = handler
+    }
+
     // MARK: - Show / Hide
 
     func showPanel() {
@@ -193,10 +258,22 @@ final class SearchPanel: NSPanel {
     }
 
     func hidePanel() {
+        if mode == .settings {
+            resetToSearchMode()
+        }
         orderOut(nil)
         searchField.stringValue = ""
         resultsTableView.results = []
         updateResultsHeight(count: 0)
+    }
+
+    /// Resets internal mode state without repositioning or showing the panel.
+    private func resetToSearchMode() {
+        mode = .search
+        settingsView.isHidden = true
+        searchIcon.isHidden = false
+        searchField.isHidden = false
+        contextBarView.updateForMode(.search)
     }
 
     func toggle() {
@@ -208,6 +285,12 @@ final class SearchPanel: NSPanel {
     }
 
     override var canBecomeKey: Bool { true }
+
+    override func cancelOperation(_ sender: Any?) {
+        if mode == .settings {
+            showSearch()
+        }
+    }
 
 }
 

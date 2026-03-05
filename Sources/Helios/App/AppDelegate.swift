@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var panel: SearchPanel!
     private var router: SearchRouter!
     private var hotkey: GlobalHotkey?
+    private var settingsManager: SettingsManager!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
@@ -28,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         toggleItem.keyEquivalentModifierMask = [.option]
         menu.addItem(toggleItem)
         menu.addItem(.separator())
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Helios", action: #selector(quit), keyEquivalent: "q"))
         statusItem.menu = menu
     }
@@ -35,8 +39,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     // MARK: - Panel
 
     private func setupPanel() {
-        panel = SearchPanel()
+        settingsManager = SettingsManager()
+        panel = SearchPanel(settingsManager: settingsManager)
         panel.searchField.searchDelegate = self
+        panel.setSettingsHandler { [weak self] in
+            self?.panel.showSettings()
+        }
     }
 
     // MARK: - Router
@@ -97,6 +105,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
 
     @objc private func togglePanel() {
         panel.toggle()
+    }
+
+    @objc private func openSettings() {
+        if !panel.isVisible {
+            panel.showPanel()
+        }
+        panel.showSettings()
     }
 
     @objc private func quit() {
