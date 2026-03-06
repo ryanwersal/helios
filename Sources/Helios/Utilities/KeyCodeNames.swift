@@ -159,36 +159,47 @@ enum ModifierSymbols {
         return flags
     }
 
+    /// Key equivalent characters for use with NSMenuItem, keyed by virtual key code.
+    private static let keyEquivalents: [UInt32: String] = {
+        var map: [UInt32: String] = [
+            UInt32(kVK_Space): " ",
+            UInt32(kVK_Return): "\r",
+            UInt32(kVK_Tab): "\t",
+            UInt32(kVK_Delete): "\u{08}",
+            UInt32(kVK_Escape): "\u{1B}",
+        ]
+        let arrowKeys: [(Int, Int)] = [
+            (kVK_UpArrow, NSUpArrowFunctionKey),
+            (kVK_DownArrow, NSDownArrowFunctionKey),
+            (kVK_LeftArrow, NSLeftArrowFunctionKey),
+            (kVK_RightArrow, NSRightArrowFunctionKey),
+        ]
+        for (keyCode, fnKey) in arrowKeys {
+            map[UInt32(keyCode)] = String(Character(UnicodeScalar(fnKey)!))
+        }
+        let fKeys: [(Int, Int)] = [
+            (kVK_F1, NSF1FunctionKey), (kVK_F2, NSF2FunctionKey),
+            (kVK_F3, NSF3FunctionKey), (kVK_F4, NSF4FunctionKey),
+            (kVK_F5, NSF5FunctionKey), (kVK_F6, NSF6FunctionKey),
+            (kVK_F7, NSF7FunctionKey), (kVK_F8, NSF8FunctionKey),
+            (kVK_F9, NSF9FunctionKey), (kVK_F10, NSF10FunctionKey),
+            (kVK_F11, NSF11FunctionKey), (kVK_F12, NSF12FunctionKey),
+        ]
+        for (keyCode, fnKey) in fKeys {
+            map[UInt32(keyCode)] = String(Character(UnicodeScalar(fnKey)!))
+        }
+        return map
+    }()
+
     /// Returns a key equivalent character for use with NSMenuItem, or nil if unknown.
     static func keyEquivalentCharacter(for keyCode: UInt32) -> String? {
-        switch Int(keyCode) {
-        case kVK_Space: return " "
-        case kVK_Return: return "\r"
-        case kVK_Tab: return "\t"
-        case kVK_Delete: return "\u{08}"
-        case kVK_Escape: return "\u{1B}"
-        case kVK_UpArrow: return String(Character(UnicodeScalar(NSUpArrowFunctionKey)!))
-        case kVK_DownArrow: return String(Character(UnicodeScalar(NSDownArrowFunctionKey)!))
-        case kVK_LeftArrow: return String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!))
-        case kVK_RightArrow: return String(Character(UnicodeScalar(NSRightArrowFunctionKey)!))
-        case kVK_F1: return String(Character(UnicodeScalar(NSF1FunctionKey)!))
-        case kVK_F2: return String(Character(UnicodeScalar(NSF2FunctionKey)!))
-        case kVK_F3: return String(Character(UnicodeScalar(NSF3FunctionKey)!))
-        case kVK_F4: return String(Character(UnicodeScalar(NSF4FunctionKey)!))
-        case kVK_F5: return String(Character(UnicodeScalar(NSF5FunctionKey)!))
-        case kVK_F6: return String(Character(UnicodeScalar(NSF6FunctionKey)!))
-        case kVK_F7: return String(Character(UnicodeScalar(NSF7FunctionKey)!))
-        case kVK_F8: return String(Character(UnicodeScalar(NSF8FunctionKey)!))
-        case kVK_F9: return String(Character(UnicodeScalar(NSF9FunctionKey)!))
-        case kVK_F10: return String(Character(UnicodeScalar(NSF10FunctionKey)!))
-        case kVK_F11: return String(Character(UnicodeScalar(NSF11FunctionKey)!))
-        case kVK_F12: return String(Character(UnicodeScalar(NSF12FunctionKey)!))
-        default:
-            // For letter/number/symbol keys, use the display name lowercased
-            if let name = KeyCodeNames.names[keyCode], name.count == 1 {
-                return name.lowercased()
-            }
-            return nil
+        if let equivalent = keyEquivalents[keyCode] {
+            return equivalent
         }
+        // For letter/number/symbol keys, use the display name lowercased
+        if let name = KeyCodeNames.names[keyCode], name.count == 1 {
+            return name.lowercased()
+        }
+        return nil
     }
 }

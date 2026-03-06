@@ -28,10 +28,7 @@ final class SearchPanel: NSPanel {
     private let resultsHeightConstraint: NSLayoutConstraint
     private var mode: PanelMode = .search
 
-    private let quickLinkStore: QuickLinkStore?
-
     init(settingsManager: SettingsManager, quickLinkStore: QuickLinkStore? = nil) {
-        self.quickLinkStore = quickLinkStore
         searchField = SearchField()
         resultsTableView = ResultsTableView()
         containerView = AppearanceAwareView()
@@ -330,28 +327,28 @@ final class SearchPanel: NSPanel {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // In a .nonactivatingPanel, standard editing key equivalents (Cmd+C/V/X/A)
         // don't reach the field editor because the app's Edit menu isn't active.
-        // Forward them manually to the current field editor.
-        if mode == .settings, event.modifierFlags.contains(.command),
-           let fieldEditor = firstResponder as? NSTextView
+        if mode == .settings,
+           forwardEditingKeyEquivalent(event)
         {
-            switch event.charactersIgnoringModifiers {
-            case "v":
-                fieldEditor.paste(nil)
-                return true
-            case "c":
-                fieldEditor.copy(nil)
-                return true
-            case "x":
-                fieldEditor.cut(nil)
-                return true
-            case "a":
-                fieldEditor.selectAll(nil)
-                return true
-            default:
-                break
-            }
+            return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    /// Forwards Cmd+C/V/X/A to the current field editor. Returns true if handled.
+    private func forwardEditingKeyEquivalent(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.command),
+              let fieldEditor = firstResponder as? NSTextView
+        else { return false }
+
+        switch event.charactersIgnoringModifiers {
+        case "v": fieldEditor.paste(nil)
+        case "c": fieldEditor.copy(nil)
+        case "x": fieldEditor.cut(nil)
+        case "a": fieldEditor.selectAll(nil)
+        default: return false
+        }
+        return true
     }
 
     override func cancelOperation(_: Any?) {

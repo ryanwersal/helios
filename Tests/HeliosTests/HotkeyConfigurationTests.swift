@@ -20,15 +20,15 @@ struct HotkeyConfigurationTests {
 
     @Test
     func `equatable same values`() {
-        let a = HotkeyConfiguration(keyCode: 10, modifiers: 100)
-        let b = HotkeyConfiguration(keyCode: 10, modifiers: 100)
-        #expect(a == b)
+        let config1 = HotkeyConfiguration(keyCode: 10, modifiers: 100)
+        let config2 = HotkeyConfiguration(keyCode: 10, modifiers: 100)
+        #expect(config1 == config2)
     }
 
     @Test
     func `equatable different values`() {
-        let a = HotkeyConfiguration(keyCode: 10, modifiers: 100)
-        let b = HotkeyConfiguration(keyCode: 11, modifiers: 100)
-        #expect(a != b)
+        let config1 = HotkeyConfiguration(keyCode: 10, modifiers: 100)
+        let config2 = HotkeyConfiguration(keyCode: 11, modifiers: 100)
+        #expect(config1 != config2)
     }
 }

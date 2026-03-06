@@ -28,7 +28,6 @@ final class ShortcutRecorderView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-
     private func setupView() {
         wantsLayer = true
         layer?.cornerRadius = 6
@@ -148,7 +147,7 @@ final class ShortcutRecorderView: NSView {
 
         // Require at least one modifier
         let modifierFlags: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
-        guard !flags.intersection(modifierFlags).isEmpty else { return }
+        guard !flags.isDisjoint(with: modifierFlags) else { return }
 
         let carbonMods = ModifierSymbols.carbonModifiers(from: flags)
         let config = HotkeyConfiguration(keyCode: UInt32(keyCode), modifiers: carbonMods)

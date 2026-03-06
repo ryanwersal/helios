@@ -14,11 +14,11 @@ struct QuickLinkTests {
 
     @Test
     func `equatable conformance`() {
-        let a = QuickLink(keyword: "gh", name: "GitHub", url: "https://github.com/{query}")
-        let b = QuickLink(keyword: "gh", name: "GitHub", url: "https://github.com/{query}")
-        let c = QuickLink(keyword: "gl", name: "GitLab", url: "https://gitlab.com/{query}")
-        #expect(a == b)
-        #expect(a != c)
+        let link1 = QuickLink(keyword: "gh", name: "GitHub", url: "https://github.com/{query}")
+        let link2 = QuickLink(keyword: "gh", name: "GitHub", url: "https://github.com/{query}")
+        let link3 = QuickLink(keyword: "gl", name: "GitLab", url: "https://gitlab.com/{query}")
+        #expect(link1 == link2)
+        #expect(link1 != link3)
     }
 
     @Test

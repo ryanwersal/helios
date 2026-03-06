@@ -9,8 +9,8 @@ struct QuickLinkProviderTests {
             .appendingPathComponent(UUID().uuidString)
             .appendingPathComponent("quicklinks.yaml")
         let store = QuickLinkStore(configURL: url)
-        for ql in quicklinks {
-            store.add(ql)
+        for quicklink in quicklinks {
+            store.add(quicklink)
         }
         return QuickLinkProvider(store: store)
     }
