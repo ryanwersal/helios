@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var router: SearchRouter!
     private var hotkey: GlobalHotkey?
     private var settingsManager: SettingsManager!
+    private var quickLinkStore: QuickLinkStore!
+    private var toggleMenuItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_: Notification) {
         setupMenuBar()
@@ -25,9 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         }
 
         let menu = NSMenu()
-        let toggleItem = NSMenuItem(title: "Toggle Helios", action: #selector(togglePanel), keyEquivalent: " ")
-        toggleItem.keyEquivalentModifierMask = [.option]
-        menu.addItem(toggleItem)
+        toggleMenuItem = NSMenuItem(title: "Toggle Helios", action: #selector(togglePanel), keyEquivalent: " ")
+        toggleMenuItem.keyEquivalentModifierMask = [.option]
+        menu.addItem(toggleMenuItem)
         menu.addItem(.separator())
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         menu.addItem(settingsItem)
@@ -40,7 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
 
     private func setupPanel() {
         settingsManager = SettingsManager()
-        panel = SearchPanel(settingsManager: settingsManager)
+        settingsManager.onHotkeyChanged = { [weak self] config in
+            self?.applyHotkeyConfiguration(config)
+        }
+        quickLinkStore = QuickLinkStore()
+        quickLinkStore.reload()
+        panel = SearchPanel(settingsManager: settingsManager, quickLinkStore: quickLinkStore)
         panel.searchField.searchDelegate = self
         panel.setSettingsHandler { [weak self] in
             self?.panel.showSettings()
@@ -51,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
 
     private func setupRouter() {
         router = SearchRouter(providers: [
+            QuickLinkProvider(store: quickLinkStore),
             CalculatorProvider(),
             DateTimeProvider(),
             AppLauncherProvider(),
@@ -61,14 +69,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     // MARK: - Hotkey
 
     private func setupHotkey() {
-        // Option+Space: keyCode 49 = Space, optionKey modifier
+        applyHotkeyConfiguration(settingsManager.hotkey)
+    }
+
+    private func applyHotkeyConfiguration(_ config: HotkeyConfiguration) {
+        hotkey = nil
         hotkey = GlobalHotkey(
-            keyCode: UInt32(kVK_Space),
-            modifiers: UInt32(optionKey),
+            keyCode: config.keyCode,
+            modifiers: config.modifiers,
             callback: { [weak self] in
-                self?.panel.toggle()
+                self?.togglePanel()
             },
         )
+        updateMenuKeyEquivalent(config)
+    }
+
+    private func updateMenuKeyEquivalent(_ config: HotkeyConfiguration) {
+        toggleMenuItem.keyEquivalentModifierMask = ModifierSymbols.cocoaModifiers(from: config.modifiers)
+        toggleMenuItem.keyEquivalent = ModifierSymbols.keyEquivalentCharacter(for: config.keyCode) ?? ""
     }
 
     // MARK: - SearchFieldDelegate
@@ -104,6 +122,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     // MARK: - Actions
 
     @objc private func togglePanel() {
+        if !panel.isVisible {
+            quickLinkStore.reload()
+        }
         panel.toggle()
     }
 

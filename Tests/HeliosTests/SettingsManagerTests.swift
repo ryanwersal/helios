@@ -1,3 +1,4 @@
+import Carbon
 @testable import Helios
 import Testing
 
@@ -84,5 +85,71 @@ struct SettingsManagerTests {
 
         #expect(mock.unregisterCallCount == 1)
         #expect(mock.isEnabled)
+    }
+
+    // MARK: - Hotkey
+
+    @Test
+    func `hotkey defaults to Option Space`() {
+        let defaults = UserDefaults(suiteName: "test.hotkey.default")!
+        defaults.removePersistentDomain(forName: "test.hotkey.default")
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        #expect(manager.hotkey == .default)
+        #expect(manager.hotkey.keyCode == UInt32(kVK_Space))
+        #expect(manager.hotkey.modifiers == UInt32(optionKey))
+    }
+
+    @Test
+    func `hotkey persists to UserDefaults`() {
+        let suiteName = "test.hotkey.persist"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        let custom = HotkeyConfiguration(keyCode: UInt32(kVK_ANSI_H), modifiers: UInt32(cmdKey | shiftKey))
+        manager.hotkey = custom
+
+        // Read back from a fresh manager using the same defaults
+        let manager2 = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+        #expect(manager2.hotkey == custom)
+    }
+
+    @Test
+    func `hotkey change callback fires`() {
+        let suiteName = "test.hotkey.callback"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        var received: HotkeyConfiguration?
+        manager.onHotkeyChanged = { config in
+            received = config
+        }
+
+        let custom = HotkeyConfiguration(keyCode: UInt32(kVK_ANSI_H), modifiers: UInt32(cmdKey))
+        manager.hotkey = custom
+
+        #expect(received == custom)
+    }
+
+    @Test
+    func `hotkey callback skipped for same value`() {
+        let suiteName = "test.hotkey.skip"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        let custom = HotkeyConfiguration(keyCode: UInt32(kVK_ANSI_H), modifiers: UInt32(cmdKey))
+        manager.hotkey = custom
+
+        var callCount = 0
+        manager.onHotkeyChanged = { _ in
+            callCount += 1
+        }
+
+        // Set the same value again
+        manager.hotkey = custom
+        #expect(callCount == 0)
     }
 }

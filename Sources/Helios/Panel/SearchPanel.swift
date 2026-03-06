@@ -12,7 +12,7 @@ final class SearchPanel: NSPanel {
     static let resultRowHeight: CGFloat = 48
     static let maxVisibleResults = 8
     static let emptyStateHeight: CGFloat = 160
-    static let settingsHeight: CGFloat = 160
+    static let settingsHeight: CGFloat = 360
     static let contextBarHeight: CGFloat = ContextBarView.height
 
     let searchField: SearchField
@@ -28,7 +28,10 @@ final class SearchPanel: NSPanel {
     private let resultsHeightConstraint: NSLayoutConstraint
     private var mode: PanelMode = .search
 
-    init(settingsManager: SettingsManager) {
+    private let quickLinkStore: QuickLinkStore?
+
+    init(settingsManager: SettingsManager, quickLinkStore: QuickLinkStore? = nil) {
+        self.quickLinkStore = quickLinkStore
         searchField = SearchField()
         resultsTableView = ResultsTableView()
         containerView = AppearanceAwareView()
@@ -36,7 +39,7 @@ final class SearchPanel: NSPanel {
         scrollView = NSScrollView()
         separatorView = NSBox()
         emptyStateView = EmptyStateView()
-        settingsView = SettingsView(settingsManager: settingsManager)
+        settingsView = SettingsView(settingsManager: settingsManager, quickLinkStore: quickLinkStore)
         contextBarView = ContextBarView()
 
         let initialFrame = NSRect(x: 0, y: 0, width: Self.panelWidth, height: Self.searchFieldHeight)
@@ -290,6 +293,53 @@ final class SearchPanel: NSPanel {
 
     override var canBecomeKey: Bool {
         true
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, mode == .settings {
+            // Forward to shortcut recorder when recording
+            if settingsView.handleKeyEventIfRecording(event) {
+                return
+            }
+
+            // Handle Tab / Shift-Tab for field navigation
+            if event.keyCode == 48 { // Tab
+                if event.modifierFlags.contains(.shift) {
+                    selectPreviousKeyView(nil)
+                } else {
+                    selectNextKeyView(nil)
+                }
+                return
+            }
+        }
+        super.sendEvent(event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // In a .nonactivatingPanel, standard editing key equivalents (Cmd+C/V/X/A)
+        // don't reach the field editor because the app's Edit menu isn't active.
+        // Forward them manually to the current field editor.
+        if mode == .settings, event.modifierFlags.contains(.command),
+           let fieldEditor = firstResponder as? NSTextView
+        {
+            switch event.charactersIgnoringModifiers {
+            case "v":
+                fieldEditor.paste(nil)
+                return true
+            case "c":
+                fieldEditor.copy(nil)
+                return true
+            case "x":
+                fieldEditor.cut(nil)
+                return true
+            case "a":
+                fieldEditor.selectAll(nil)
+                return true
+            default:
+                break
+            }
+        }
+        return super.performKeyEquivalent(with: event)
     }
 
     override func cancelOperation(_: Any?) {

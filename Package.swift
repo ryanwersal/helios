@@ -10,6 +10,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/nicklockwood/Expression", from: "0.13.0"),
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
+        .package(url: "https://github.com/jpsim/Yams", from: "5.0.0"),
     ],
     targets: [
         .executableTarget(
@@ -17,6 +18,7 @@ let package = Package(
             dependencies: [
                 "Expression",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                "Yams",
             ],
             path: "Sources/Helios",
             resources: [
@@ -28,6 +30,7 @@ let package = Package(
             dependencies: [
                 "Helios",
                 "Expression",
+                "Yams",
             ],
             path: "Tests/HeliosTests"
         ),
