@@ -315,6 +315,18 @@ final class SettingsView: NSView {
         fieldsRow.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
         urlRow.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
 
+        // Set up delegates for Tab/Shift-Tab navigation.
+        // In a .nonactivatingPanel the normal key view loop doesn't handle Tab,
+        // so we intercept insertTab:/insertBacktab: via the delegate.
+        keywordField.delegate = self
+        nameField.delegate = self
+        urlField.delegate = self
+
+        // Manual key view loop for the form fields
+        keywordField.nextKeyView = nameField
+        nameField.nextKeyView = urlField
+        urlField.nextKeyView = keywordField
+
         formKeywordField = keywordField
         formNameField = nameField
         formURLField = urlField
@@ -407,5 +419,25 @@ final class SettingsView: NSView {
 
     @objc private func loginToggleChanged() {
         settingsManager.launchAtLogin = (loginToggle.state == .on)
+    }
+}
+
+// MARK: - Tab Navigation for Form Fields
+
+extension SettingsView: NSTextFieldDelegate {
+    func control(
+        _ control: NSControl,
+        textView _: NSTextView,
+        doCommandBy commandSelector: Selector
+    ) -> Bool {
+        if commandSelector == #selector(NSResponder.insertTab(_:)) {
+            window?.selectNextKeyView(control)
+            return true
+        }
+        if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
+            window?.selectPreviousKeyView(control)
+            return true
+        }
+        return false
     }
 }

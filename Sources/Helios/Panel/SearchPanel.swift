@@ -302,14 +302,26 @@ final class SearchPanel: NSPanel {
                 return
             }
 
-            // Handle Tab / Shift-Tab for field navigation
+            // Handle Tab / Shift-Tab for field navigation.
+            // NSWindow.sendEvent swallows Tab for keyboard interface control
+            // before it reaches the field editor, so the NSTextFieldDelegate
+            // approach doesn't work. We intercept here instead, finding the
+            // actual NSTextField from the field editor and navigating from it.
             if event.keyCode == 48 { // Tab
-                if event.modifierFlags.contains(.shift) {
-                    selectPreviousKeyView(nil)
-                } else {
-                    selectNextKeyView(nil)
+                if let fieldEditor = firstResponder as? NSTextView,
+                   fieldEditor.isFieldEditor,
+                   let editedField = fieldEditor.delegate as? NSTextField
+                {
+                    let target = if event.modifierFlags.contains(.shift) {
+                        editedField.previousKeyView
+                    } else {
+                        editedField.nextKeyView
+                    }
+                    if let target {
+                        makeFirstResponder(target)
+                    }
+                    return
                 }
-                return
             }
         }
         super.sendEvent(event)
