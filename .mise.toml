@@ -110,6 +110,10 @@ run = "swiftformat Sources Tests Plugins"
 description = "Check Swift formatting without modifying files"
 run = "swiftformat Sources Tests Plugins --lint"
 
+[tasks.check]
+description = "Run format and lint (use after making code changes)"
+depends = ["format", "lint"]
+
 [tools]
 swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }
 swiftlint = "latest"

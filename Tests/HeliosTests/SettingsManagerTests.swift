@@ -90,8 +90,8 @@ struct SettingsManagerTests {
     // MARK: - Hotkey
 
     @Test
-    func `hotkey defaults to Option Space`() {
-        let defaults = UserDefaults(suiteName: "test.hotkey.default")!
+    func `hotkey defaults to Option Space`() throws {
+        let defaults = try #require(UserDefaults(suiteName: "test.hotkey.default"))
         defaults.removePersistentDomain(forName: "test.hotkey.default")
         let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
 
@@ -101,9 +101,9 @@ struct SettingsManagerTests {
     }
 
     @Test
-    func `hotkey persists to UserDefaults`() {
+    func `hotkey persists to UserDefaults`() throws {
         let suiteName = "test.hotkey.persist"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
 
@@ -116,9 +116,9 @@ struct SettingsManagerTests {
     }
 
     @Test
-    func `hotkey change callback fires`() {
+    func `hotkey change callback fires`() throws {
         let suiteName = "test.hotkey.callback"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
 
@@ -134,9 +134,9 @@ struct SettingsManagerTests {
     }
 
     @Test
-    func `hotkey callback skipped for same value`() {
+    func `hotkey callback skipped for same value`() throws {
         let suiteName = "test.hotkey.skip"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
 

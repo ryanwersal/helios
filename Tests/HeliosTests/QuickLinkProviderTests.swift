@@ -1,5 +1,5 @@
-@testable import Helios
 import Foundation
+@testable import Helios
 import Testing
 
 @MainActor

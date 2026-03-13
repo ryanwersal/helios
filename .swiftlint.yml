@@ -1,3 +1,10 @@
+excluded:
+  - .build
+
 disabled_rules:
   - trailing_comma
   - opening_brace
+
+type_body_length:
+  warning: 300
+  error: 500

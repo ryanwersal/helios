@@ -17,9 +17,10 @@ $ARGUMENTS
 ## Review Process
 
 1. **Run automated tooling first:**
-   - Run `swiftlint` and report any warnings/errors
-   - Run `swiftformat --lint .` and report any formatting issues
-   - If either tool reports issues, include them in the Critical Issues or Improvements section as appropriate
+   - Run `mise run format` to auto-fix any formatting issues, then check `git diff` for what changed
+   - Run `mise run lint` and report any warnings/errors
+   - If lint reports issues, include them in the Critical Issues or Improvements section as appropriate
+   - If format made changes, note which files were reformatted
 2. **Identify all changed files** using git diff
 3. **Read each changed file in full** — do not review diffs in isolation; understand the surrounding code
 4. **Read related files** that interact with the changed code (imports, callers, protocols, tests)
