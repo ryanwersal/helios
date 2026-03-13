@@ -21,6 +21,17 @@ done
 
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# Copy built-in plugins
+for plugin_src in Plugins/*/manifest.yaml; do
+  [ -e "$plugin_src" ] || continue
+  plugin_dir=$(dirname "$plugin_src")
+  plugin_name=$(basename "$plugin_dir")
+  dest="$APP/Contents/Plugins/$plugin_name"
+  mkdir -p "$dest"
+  cp ".build/release/$plugin_name" "$dest/plugin"
+  cp "$plugin_src" "$dest/manifest.yaml"
+done
+
 # Gatekeeper requires a signature covering the full bundle, not just the executable.
 codesign --force --deep --sign - "$APP"
 
@@ -89,15 +100,15 @@ echo "Updated tap to ${VERSION} (sha256: ${SHA256})"
 
 [tasks.lint]
 description = "Lint Swift files"
-run = "swiftlint lint --strict Sources Tests"
+run = "swiftlint lint --strict Sources Tests Plugins"
 
 [tasks.format]
 description = "Format Swift files"
-run = "swiftformat Sources Tests"
+run = "swiftformat Sources Tests Plugins"
 
 [tasks.format-check]
 description = "Check Swift formatting without modifying files"
-run = "swiftformat Sources Tests --lint"
+run = "swiftformat Sources Tests Plugins --lint"
 
 [tools]
 swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }

@@ -1,9 +1,9 @@
-struct QuickLink: Codable, Sendable, Equatable {
+struct QuickLink: Codable, Equatable {
     let keyword: String
     let name: String
     let url: String // template containing {query}
 }
 
-struct QuickLinksConfig: Codable, Sendable {
+struct QuickLinksConfig: Codable {
     var quicklinks: [QuickLink]
 }

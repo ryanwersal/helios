@@ -1,0 +1,4 @@
+name: Chrome Bookmarks
+version: "1.0"
+description: Search Chrome bookmarks
+mode: long-running

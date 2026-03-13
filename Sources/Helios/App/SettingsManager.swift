@@ -34,7 +34,7 @@ final class SettingsManager {
 
     init(
         loginItemService: LoginItemService = SystemLoginItemService(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
     ) {
         self.loginItemService = loginItemService
         self.defaults = defaults

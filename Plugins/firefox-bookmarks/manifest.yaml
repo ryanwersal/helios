@@ -1,0 +1,4 @@
+name: Firefox Bookmarks
+version: "1.0"
+description: Search Firefox bookmarks
+mode: long-running

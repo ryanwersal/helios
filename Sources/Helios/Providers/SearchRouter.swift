@@ -1,9 +1,13 @@
 @MainActor
 final class SearchRouter {
-    private let providers: [SearchProvider]
+    private(set) var providers: [SearchProvider]
 
     init(providers: [SearchProvider]) {
         self.providers = providers
+    }
+
+    func addProviders(_ newProviders: [SearchProvider]) {
+        providers.append(contentsOf: newProviders)
     }
 
     func search(query: String) -> [SearchResult] {

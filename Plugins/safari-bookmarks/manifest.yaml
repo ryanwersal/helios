@@ -1,0 +1,4 @@
+name: Safari Bookmarks
+version: "1.0"
+description: Search Safari bookmarks
+mode: long-running

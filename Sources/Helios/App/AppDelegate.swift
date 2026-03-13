@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var hotkey: GlobalHotkey?
     private var settingsManager: SettingsManager!
     private var quickLinkStore: QuickLinkStore!
+    private var pluginManager: PluginManager!
     private var toggleMenuItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_: Notification) {
@@ -62,8 +63,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
             CalculatorProvider(),
             DateTimeProvider(),
             AppLauncherProvider(),
-            FirefoxBookmarkProvider(),
         ])
+
+        pluginManager = PluginManager()
+        pluginManager.onResultsUpdated = { [weak self] in
+            self?.refreshCurrentResults()
+        }
+
+        Task {
+            await pluginManager.loadPlugins()
+            router.addProviders(pluginManager.providers)
+        }
+    }
+
+    private func refreshCurrentResults() {
+        let text = panel.searchField.stringValue
+        guard !text.isEmpty else { return }
+        searchFieldDidChange(text: text)
     }
 
     // MARK: - Hotkey

@@ -40,7 +40,7 @@ final class SettingsView: NSView {
             iconName: "person.crop.circle",
             iconDescription: "Launch at Login",
             labelText: "Launch at Login",
-            control: loginToggle
+            control: loginToggle,
         )
         loginToggle.target = self
         loginToggle.action = #selector(loginToggleChanged)
@@ -52,7 +52,7 @@ final class SettingsView: NSView {
             iconName: "keyboard",
             iconDescription: "Keyboard Shortcut",
             labelText: "Keyboard Shortcut",
-            control: shortcutRecorder
+            control: shortcutRecorder,
         )
         shortcutRecorder.onChange = { [weak self] config in
             self?.settingsManager.hotkey = config
@@ -87,7 +87,7 @@ final class SettingsView: NSView {
         iconName: String,
         iconDescription: String,
         labelText: String,
-        control: NSView
+        control: NSView,
     ) -> NSStackView {
         let row = NSStackView()
         row.orientation = .horizontal

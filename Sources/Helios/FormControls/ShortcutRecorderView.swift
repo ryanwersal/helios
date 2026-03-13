@@ -129,13 +129,13 @@ final class ShortcutRecorderView: NSView {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
         // Escape cancels recording (allow .function flag which macOS sometimes adds)
-        if keyCode == UInt16(kVK_Escape) && flags.subtracting(.function).isEmpty {
+        if keyCode == UInt16(kVK_Escape), flags.subtracting(.function).isEmpty {
             cancelRecording()
             return
         }
 
         // Delete resets to default
-        if keyCode == UInt16(kVK_Delete) && flags.isEmpty {
+        if keyCode == UInt16(kVK_Delete), flags.isEmpty {
             let defaultConfig = HotkeyConfiguration.default
             currentConfig = defaultConfig
             stopRecording()
@@ -162,9 +162,8 @@ final class ShortcutRecorderView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window == nil && isRecording {
+        if window == nil, isRecording {
             cancelRecording()
         }
     }
-
 }

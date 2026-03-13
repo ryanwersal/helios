@@ -28,7 +28,7 @@ final class QuickLinkProvider: SearchProvider {
                 subtitle: "Type a query after '\(keyword)'",
                 icon: icon,
                 action: .none,
-                relevance: 10000
+                relevance: 10000,
             )]
         }
 
@@ -43,7 +43,7 @@ final class QuickLinkProvider: SearchProvider {
             subtitle: url.absoluteString,
             icon: icon,
             action: .openURL(url),
-            relevance: 10000
+            relevance: 10000,
         )]
     }
 

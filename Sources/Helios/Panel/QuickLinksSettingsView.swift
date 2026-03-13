@@ -70,7 +70,7 @@ final class QuickLinksSettingsView: NSView {
         let openButton = NSButton(
             title: "Open Config File",
             target: self,
-            action: #selector(openConfigFile)
+            action: #selector(openConfigFile),
         )
         openButton.bezelStyle = .push
         openButton.controlSize = .small
@@ -337,7 +337,7 @@ extension QuickLinksSettingsView: NSTextFieldDelegate {
     func control(
         _ control: NSControl,
         textView _: NSTextView,
-        doCommandBy commandSelector: Selector
+        doCommandBy commandSelector: Selector,
     ) -> Bool {
         if commandSelector == #selector(NSResponder.insertTab(_:)) {
             window?.selectNextKeyView(control)
