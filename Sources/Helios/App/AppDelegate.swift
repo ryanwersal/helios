@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var quickLinkStore: QuickLinkStore!
     private var pluginManager: PluginManager!
     private var toggleMenuItem: NSMenuItem!
+    private var pluginReloadTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_: Notification) {
         setupMenuBar()
@@ -48,7 +49,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         }
         quickLinkStore = QuickLinkStore()
         quickLinkStore.reload()
-        panel = SearchPanel(settingsManager: settingsManager, quickLinkStore: quickLinkStore)
+
+        pluginManager = PluginManager(isPluginDisabled: { [weak self] name in
+            self?.settingsManager.isPluginDisabled(name) ?? false
+        })
+        pluginManager.onResultsUpdated = { [weak self] in
+            self?.refreshCurrentResults()
+        }
+
+        settingsManager.onPluginSettingsChanged = { [weak self] in
+            guard let self else { return }
+            pluginReloadTask?.cancel()
+            pluginReloadTask = Task {
+                await self.pluginManager.reloadPlugins()
+                guard !Task.isCancelled else { return }
+                self.router.removePluginProviders()
+                self.router.addProviders(self.pluginManager.providers)
+            }
+        }
+
+        panel = SearchPanel(
+            settingsManager: settingsManager,
+            quickLinkStore: quickLinkStore,
+            pluginManager: pluginManager,
+        )
         panel.searchField.searchDelegate = self
         panel.setSettingsHandler { [weak self] in
             self?.panel.showSettings()
@@ -65,11 +89,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
             DateTimeProvider(),
             AppLauncherProvider(),
         ])
-
-        pluginManager = PluginManager()
-        pluginManager.onResultsUpdated = { [weak self] in
-            self?.refreshCurrentResults()
-        }
 
         Task {
             await pluginManager.loadPlugins()

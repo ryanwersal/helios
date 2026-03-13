@@ -6,9 +6,11 @@ final class PluginManager {
     var onResultsUpdated: (() -> Void)?
 
     private let pluginsDirectory: URL
+    private let isPluginDisabled: (String) -> Bool
 
-    init(pluginsDirectory: URL? = nil) {
+    init(pluginsDirectory: URL? = nil, isPluginDisabled: @escaping (String) -> Bool = { _ in false }) {
         self.pluginsDirectory = pluginsDirectory ?? Self.defaultPluginsDirectory
+        self.isPluginDisabled = isPluginDisabled
     }
 
     private static var defaultPluginsDirectory: URL {
@@ -121,6 +123,11 @@ final class PluginManager {
                     continue
                 }
 
+                if isPluginDisabled(manifest.name) {
+                    NSLog("[Helios] Skipping disabled plugin: %@", manifest.name)
+                    continue
+                }
+
                 candidates.append((manifest, executableURL))
             } catch {
                 NSLog(
@@ -177,6 +184,58 @@ final class PluginManager {
             providers.append(provider)
             NSLog("[Helios] Loaded plugin: %@", manifest.name)
         }
+    }
+
+    /// Returns manifests for all discovered plugins, regardless of disabled state.
+    /// Used by the settings UI to show all available plugins with toggle state.
+    func discoverAllManifests() -> [PluginManifest] {
+        var manifests: [PluginManifest] = []
+        var seen = Set<String>()
+
+        func scan(directory: URL, resolveExecutable: ((URL) -> URL)? = nil) {
+            let fileManager = FileManager.default
+            guard fileManager.fileExists(atPath: directory.path) else { return }
+
+            let entries: [URL]
+            do {
+                entries = try fileManager.contentsOfDirectory(
+                    at: directory,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                )
+            } catch { return }
+
+            for entry in entries {
+                guard isDirectory(entry) else { continue }
+                let manifestURL = entry.appendingPathComponent("manifest.yaml")
+                let executableURL = resolveExecutable?(entry) ?? entry.appendingPathComponent("plugin")
+                guard fileManager.fileExists(atPath: manifestURL.path),
+                      fileManager.fileExists(atPath: executableURL.path),
+                      fileManager.isExecutableFile(atPath: executableURL.path)
+                else { continue }
+
+                if let manifest = try? PluginManifest.load(from: manifestURL),
+                   !seen.contains(manifest.name)
+                {
+                    seen.insert(manifest.name)
+                    manifests.append(manifest)
+                }
+            }
+        }
+
+        if let bundledDir = Self.bundledPluginsDirectory {
+            scan(directory: bundledDir)
+        }
+
+        #if DEBUG
+            if let devDir = Self.devPluginsDirectory, let buildDir = Self.debugBuildDirectory {
+                scan(directory: devDir) { pluginDir in
+                    buildDir.appendingPathComponent(pluginDir.lastPathComponent)
+                }
+            }
+        #endif
+
+        scan(directory: pluginsDirectory)
+        return manifests
     }
 
     func reloadPlugins() async {

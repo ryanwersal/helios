@@ -26,11 +26,13 @@ struct SystemLoginItemService: LoginItemService {
 @MainActor
 final class SettingsManager {
     private static let hotkeyKey = "hotkeyConfiguration"
+    private static let disabledPluginsKey = "disabledPlugins"
 
     private let loginItemService: LoginItemService
     private let defaults: UserDefaults
 
     var onHotkeyChanged: ((HotkeyConfiguration) -> Void)?
+    var onPluginSettingsChanged: (() -> Void)?
 
     init(
         loginItemService: LoginItemService = SystemLoginItemService(),
@@ -57,6 +59,30 @@ final class SettingsManager {
                 NSLog("Helios: failed to \(newValue ? "register" : "unregister") login item: \(error)")
             }
         }
+    }
+
+    var disabledPlugins: Set<String> {
+        get {
+            Set(defaults.stringArray(forKey: Self.disabledPluginsKey) ?? [])
+        }
+        set {
+            defaults.set(Array(newValue), forKey: Self.disabledPluginsKey)
+        }
+    }
+
+    func isPluginDisabled(_ name: String) -> Bool {
+        disabledPlugins.contains(name)
+    }
+
+    func setPluginDisabled(_ name: String, disabled: Bool) {
+        var current = disabledPlugins
+        if disabled {
+            current.insert(name)
+        } else {
+            current.remove(name)
+        }
+        disabledPlugins = current
+        onPluginSettingsChanged?()
     }
 
     var hotkey: HotkeyConfiguration {

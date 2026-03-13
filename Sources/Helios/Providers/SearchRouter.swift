@@ -10,6 +10,10 @@ final class SearchRouter {
         providers.append(contentsOf: newProviders)
     }
 
+    func removePluginProviders() {
+        providers.removeAll { $0 is PluginProvider }
+    }
+
     func search(query: String) -> [SearchResult] {
         guard !query.isEmpty else { return [] }
 

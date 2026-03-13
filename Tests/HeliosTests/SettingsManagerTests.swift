@@ -133,6 +133,69 @@ struct SettingsManagerTests {
         #expect(received == custom)
     }
 
+    // MARK: - Disabled Plugins
+
+    @Test
+    func `disabledPlugins defaults to empty`() throws {
+        let suiteName = "test.plugins.default"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        #expect(manager.disabledPlugins.isEmpty)
+        #expect(!manager.isPluginDisabled("SomePlugin"))
+    }
+
+    @Test
+    func `setPluginDisabled persists to UserDefaults`() throws {
+        let suiteName = "test.plugins.persist"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        manager.setPluginDisabled("TestPlugin", disabled: true)
+
+        #expect(manager.isPluginDisabled("TestPlugin"))
+        #expect(!manager.isPluginDisabled("OtherPlugin"))
+
+        // Read back from a fresh manager
+        let manager2 = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+        #expect(manager2.isPluginDisabled("TestPlugin"))
+    }
+
+    @Test
+    func `setPluginDisabled re-enables plugin`() throws {
+        let suiteName = "test.plugins.reenable"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        manager.setPluginDisabled("TestPlugin", disabled: true)
+        #expect(manager.isPluginDisabled("TestPlugin"))
+
+        manager.setPluginDisabled("TestPlugin", disabled: false)
+        #expect(!manager.isPluginDisabled("TestPlugin"))
+    }
+
+    @Test
+    func `setPluginDisabled fires callback`() throws {
+        let suiteName = "test.plugins.callback"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let manager = SettingsManager(loginItemService: MockLoginItemService(), defaults: defaults)
+
+        var callCount = 0
+        manager.onPluginSettingsChanged = {
+            callCount += 1
+        }
+
+        manager.setPluginDisabled("TestPlugin", disabled: true)
+        #expect(callCount == 1)
+
+        manager.setPluginDisabled("TestPlugin", disabled: false)
+        #expect(callCount == 2)
+    }
+
     @Test
     func `hotkey callback skipped for same value`() throws {
         let suiteName = "test.hotkey.skip"

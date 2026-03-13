@@ -24,11 +24,16 @@ final class SearchPanel: NSPanel {
     private let separatorView: NSBox
     private let emptyStateView: EmptyStateView
     private let settingsView: SettingsView
+    private let settingsScrollView: NSScrollView
     private let contextBarView: ContextBarView
     private let resultsHeightConstraint: NSLayoutConstraint
     private var mode: PanelMode = .search
 
-    init(settingsManager: SettingsManager, quickLinkStore: QuickLinkStore? = nil) {
+    init(
+        settingsManager: SettingsManager,
+        quickLinkStore: QuickLinkStore? = nil,
+        pluginManager: PluginManager? = nil,
+    ) {
         searchField = SearchField()
         resultsTableView = ResultsTableView()
         containerView = AppearanceAwareView()
@@ -36,7 +41,12 @@ final class SearchPanel: NSPanel {
         scrollView = NSScrollView()
         separatorView = NSBox()
         emptyStateView = EmptyStateView()
-        settingsView = SettingsView(settingsManager: settingsManager, quickLinkStore: quickLinkStore)
+        settingsView = SettingsView(
+            settingsManager: settingsManager,
+            quickLinkStore: quickLinkStore,
+            pluginManager: pluginManager,
+        )
+        settingsScrollView = NSScrollView()
         contextBarView = ContextBarView()
 
         let initialFrame = NSRect(x: 0, y: 0, width: Self.panelWidth, height: Self.searchFieldHeight)
@@ -103,9 +113,16 @@ final class SearchPanel: NSPanel {
         scrollView.borderType = .noBorder
         containerView.addSubview(scrollView)
 
+        settingsScrollView.translatesAutoresizingMaskIntoConstraints = false
+        settingsScrollView.documentView = settingsView
+        settingsScrollView.hasVerticalScroller = true
+        settingsScrollView.autohidesScrollers = true
+        settingsScrollView.drawsBackground = false
+        settingsScrollView.borderType = .noBorder
+        settingsScrollView.automaticallyAdjustsContentInsets = false
+        settingsScrollView.isHidden = true
         settingsView.translatesAutoresizingMaskIntoConstraints = false
-        settingsView.isHidden = true
-        containerView.addSubview(settingsView)
+        containerView.addSubview(settingsScrollView)
 
         contextBarView.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(contextBarView)
@@ -144,10 +161,14 @@ final class SearchPanel: NSPanel {
             scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             resultsHeightConstraint,
 
-            settingsView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            settingsView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            settingsView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            settingsView.bottomAnchor.constraint(equalTo: contextBarView.topAnchor),
+            settingsScrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            settingsScrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            settingsScrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            settingsScrollView.bottomAnchor.constraint(equalTo: contextBarView.topAnchor),
+
+            settingsView.topAnchor.constraint(equalTo: settingsScrollView.contentView.topAnchor),
+            settingsView.leadingAnchor.constraint(equalTo: settingsScrollView.contentView.leadingAnchor),
+            settingsView.trailingAnchor.constraint(equalTo: settingsScrollView.contentView.trailingAnchor),
 
             contextBarView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             contextBarView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
@@ -219,8 +240,9 @@ final class SearchPanel: NSPanel {
         scrollView.isHidden = true
 
         // Show settings
-        settingsView.isHidden = false
+        settingsScrollView.isHidden = false
         settingsView.refresh()
+        settingsScrollView.contentView.scroll(to: .zero)
         contextBarView.updateForMode(.settings)
 
         setPanelHeight(Self.settingsHeight + Self.contextBarHeight)
@@ -234,7 +256,7 @@ final class SearchPanel: NSPanel {
         mode = .search
 
         // Hide settings
-        settingsView.isHidden = true
+        settingsScrollView.isHidden = true
 
         // Restore search UI
         searchIcon.isHidden = false
@@ -274,7 +296,7 @@ final class SearchPanel: NSPanel {
     /// Resets internal mode state without repositioning or showing the panel.
     private func resetToSearchMode() {
         mode = .search
-        settingsView.isHidden = true
+        settingsScrollView.isHidden = true
         searchIcon.isHidden = false
         searchField.isHidden = false
         contextBarView.updateForMode(.search)
@@ -354,35 +376,6 @@ final class SearchPanel: NSPanel {
     override func cancelOperation(_: Any?) {
         if mode == .settings {
             showSearch()
-        }
-    }
-}
-
-// MARK: - Appearance-Aware Container View
-
-@MainActor
-private final class AppearanceAwareView: NSView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 16
-        layer?.masksToBounds = true
-        updateBackground()
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateBackground()
-    }
-
-    private func updateBackground() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         }
     }
 }

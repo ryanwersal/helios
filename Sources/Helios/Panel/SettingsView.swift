@@ -6,12 +6,23 @@ final class SettingsView: NSView {
     private let loginToggle = NSSwitch()
     private let shortcutRecorder = ShortcutRecorderView()
     private var quicklinksView: QuickLinksSettingsView?
+    private var pluginSettingsView: PluginSettingsView?
 
-    init(settingsManager: SettingsManager, quickLinkStore: QuickLinkStore? = nil) {
+    init(
+        settingsManager: SettingsManager,
+        quickLinkStore: QuickLinkStore? = nil,
+        pluginManager: PluginManager? = nil,
+    ) {
         self.settingsManager = settingsManager
         super.init(frame: .zero)
         if let quickLinkStore {
             quicklinksView = QuickLinksSettingsView(store: quickLinkStore)
+        }
+        if let pluginManager {
+            pluginSettingsView = PluginSettingsView(
+                settingsManager: settingsManager,
+                pluginManager: pluginManager,
+            )
         }
         setupViews()
     }
@@ -61,26 +72,36 @@ final class SettingsView: NSView {
 
         // Quicklinks section
         if let quicklinksView {
-            let separator = NSBox()
-            separator.boxType = .separator
-            separator.translatesAutoresizingMaskIntoConstraints = false
-            stack.addArrangedSubview(separator)
+            addSeparatedSection(quicklinksView, to: stack)
+        }
 
-            quicklinksView.translatesAutoresizingMaskIntoConstraints = false
-            stack.addArrangedSubview(quicklinksView)
-
-            separator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-            quicklinksView.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        // Plugins section
+        if let pluginSettingsView {
+            addSeparatedSection(pluginSettingsView, to: stack)
         }
 
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 14),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
 
             loginRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             shortcutRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
+    }
+
+    private func addSeparatedSection(_ section: NSView, to stack: NSStackView) {
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        stack.addArrangedSubview(separator)
+
+        section.translatesAutoresizingMaskIntoConstraints = false
+        stack.addArrangedSubview(section)
+
+        separator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        section.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
     }
 
     private func makeSettingsRow(
@@ -129,6 +150,7 @@ final class SettingsView: NSView {
         loginToggle.state = settingsManager.launchAtLogin ? .on : .off
         shortcutRecorder.configure(with: settingsManager.hotkey)
         quicklinksView?.refresh()
+        pluginSettingsView?.refresh()
     }
 
     @objc private func loginToggleChanged() {
