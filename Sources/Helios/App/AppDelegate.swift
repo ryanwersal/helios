@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         router = SearchRouter(providers: [
             QuickLinkProvider(store: quickLinkStore),
             CalculatorProvider(),
+            UnitConversionProvider(),
             DateTimeProvider(),
             AppLauncherProvider(),
         ])

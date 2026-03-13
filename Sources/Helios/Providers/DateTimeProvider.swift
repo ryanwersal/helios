@@ -7,6 +7,7 @@ final class DateTimeProvider: SearchProvider {
     private static let convertPattern = makeRegex(
         #"^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(\S+)\s+in\s+(.+)$"#,
     )
+    private static let cityTimeInPattern = makeRegex(#"^(.+?)\s+time\s+in\s+(.+)$"#)
     private static let fromNowPattern = makeRegex(
         #"^(\d+)\s+(minute|hour|day|week|month|year)s?\s+from\s+now$"#,
     )
@@ -79,8 +80,9 @@ final class DateTimeProvider: SearchProvider {
     func canHandle(query: String) -> Bool {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let range = NSRange(trimmed.startIndex..., in: trimmed)
-        return Self.timeInPattern.firstMatch(in: trimmed, range: range) != nil
-            || Self.convertPattern.firstMatch(in: trimmed, range: range) != nil
+        return Self.convertPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.timeInPattern.firstMatch(in: trimmed, range: range) != nil
             || Self.fromNowPattern.firstMatch(in: trimmed, range: range) != nil
             || Self.daysUntilPattern.firstMatch(in: trimmed, range: range) != nil
     }
@@ -89,11 +91,14 @@ final class DateTimeProvider: SearchProvider {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let range = NSRange(trimmed.startIndex..., in: trimmed)
 
-        if let match = Self.timeInPattern.firstMatch(in: trimmed, range: range) {
-            return handleTimeIn(query: trimmed, match: match)
-        }
         if let match = Self.convertPattern.firstMatch(in: trimmed, range: range) {
             return handleConvert(query: trimmed, match: match)
+        }
+        if let match = Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) {
+            return handleCityTimeIn(query: trimmed, match: match)
+        }
+        if let match = Self.timeInPattern.firstMatch(in: trimmed, range: range) {
+            return handleTimeIn(query: trimmed, match: match)
         }
         if let match = Self.fromNowPattern.firstMatch(in: trimmed, range: range) {
             return handleFromNow(query: trimmed, match: match)
@@ -124,6 +129,39 @@ final class DateTimeProvider: SearchProvider {
         return [SearchResult(
             title: resultText,
             subtitle: "\(city.capitalized) (\(zone.identifier))",
+            icon: icon,
+            action: .copyToClipboard(resultText),
+            relevance: 10000,
+        )]
+    }
+
+    // MARK: - "<city> time in <city>"
+
+    private func handleCityTimeIn(query: String, match: NSTextCheckingResult) -> [SearchResult] {
+        guard let fromRange = Range(match.range(at: 1), in: query),
+              let toRange = Range(match.range(at: 2), in: query)
+        else { return [] }
+
+        let fromCity = String(query[fromRange])
+        let toCity = String(query[toRange])
+
+        guard let fromTZ = TimezoneMap.timezone(for: fromCity),
+              let toTZ = TimezoneMap.timezone(for: toCity)
+        else { return [] }
+
+        let now = Date()
+        Self.timeFormatter.timeZone = toTZ
+        let timeStr = Self.timeFormatter.string(from: now)
+
+        Self.dayFormatter.timeZone = toTZ
+        let dayStr = Self.dayFormatter.string(from: now)
+
+        let icon = NSImage(systemSymbolName: "globe", accessibilityDescription: "Timezone")
+        let resultText = "\(timeStr) — \(dayStr)"
+
+        return [SearchResult(
+            title: resultText,
+            subtitle: "\(fromCity.capitalized) → \(toCity.capitalized) (\(fromTZ.identifier) → \(toTZ.identifier))",
             icon: icon,
             action: .copyToClipboard(resultText),
             relevance: 10000,
