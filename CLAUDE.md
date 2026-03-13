@@ -8,12 +8,12 @@ Native macOS launcher (Swift + AppKit). See `PLAN.md` for full architecture and 
 All common tasks are defined as mise tasks. Use these instead of raw commands:
 
 ```
-mise run check         # Format + lint (run after every code change)
+mise run check         # Format + lint + build (run after every code change)
 mise run format        # Auto-format Swift files
 mise run format-check  # Check formatting without modifying files
 mise run lint          # Lint Swift files (--strict)
+mise run build-check   # Debug build with warnings-as-errors
 mise run build         # Build release .app bundle
-swift build            # Quick debug build
 swift test             # Run tests
 ```
 

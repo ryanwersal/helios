@@ -67,7 +67,7 @@ actor PluginProcess {
 
             Task {
                 try await Task.sleep(for: .seconds(5))
-                await self.handleReadyTimeout()
+                self.handleReadyTimeout()
             }
         }
     }

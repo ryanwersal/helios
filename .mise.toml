@@ -110,9 +110,13 @@ run = "swiftformat Sources Tests Plugins"
 description = "Check Swift formatting without modifying files"
 run = "swiftformat Sources Tests Plugins --lint"
 
+[tasks.build-check]
+description = "Debug build with warnings as errors"
+run = "swift build -Xswiftc -warnings-as-errors"
+
 [tasks.check]
-description = "Run format and lint (use after making code changes)"
-depends = ["format", "lint"]
+description = "Format, lint, and build with warnings-as-errors"
+depends = ["format", "lint", "build-check"]
 
 [tools]
 swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }
