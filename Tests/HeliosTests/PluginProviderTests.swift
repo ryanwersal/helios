@@ -49,4 +49,44 @@ struct PluginProviderTests {
         let results = provider.search(query: "hello")
         #expect(results.isEmpty)
     }
+
+    // MARK: - Badge icon
+
+    @Test
+    func `badgeImage is populated for app path icon`() {
+        let manifest = PluginManifest(
+            name: "Test",
+            version: "1.0",
+            description: "test",
+            icon: "/System/Applications/Safari.app",
+        )
+        let process = PluginProcess(name: "test", executableURL: URL(fileURLWithPath: "/dev/null"))
+        let provider = PluginProvider(manifest: manifest, process: process)
+        #expect(provider.badgeImage != nil)
+    }
+
+    @Test
+    func `badgeImage is nil without icon`() {
+        let manifest = PluginManifest(
+            name: "Test",
+            version: "1.0",
+            description: "test",
+        )
+        let process = PluginProcess(name: "test", executableURL: URL(fileURLWithPath: "/dev/null"))
+        let provider = PluginProvider(manifest: manifest, process: process)
+        #expect(provider.badgeImage == nil)
+    }
+
+    @Test
+    func `badgeImage resolves SF Symbol`() {
+        let manifest = PluginManifest(
+            name: "Test",
+            version: "1.0",
+            description: "test",
+            icon: "star.fill",
+        )
+        let process = PluginProcess(name: "test", executableURL: URL(fileURLWithPath: "/dev/null"))
+        let provider = PluginProvider(manifest: manifest, process: process)
+        #expect(provider.badgeImage != nil)
+    }
 }

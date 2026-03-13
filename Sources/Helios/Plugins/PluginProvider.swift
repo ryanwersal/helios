@@ -8,9 +8,31 @@ final class PluginProvider: SearchProvider {
     private var cachedResults: [SearchResult] = []
     var onResultsUpdated: (() -> Void)?
 
+    private(set) lazy var badgeImage: NSImage? = resolveBadgeIcon()
+
     init(manifest: PluginManifest, process: PluginProcess) {
         self.manifest = manifest
         self.process = process
+    }
+
+    private func resolveBadgeIcon() -> NSImage? {
+        guard let iconSpec = manifest.icon else { return nil }
+        if iconSpec.hasPrefix("/") {
+            let source = NSWorkspace.shared.icon(forFile: iconSpec)
+            return Self.prerenderBadgeIcon(source)
+        }
+        return NSImage(systemSymbolName: iconSpec, accessibilityDescription: nil)
+    }
+
+    private static func prerenderBadgeIcon(_ source: NSImage) -> NSImage {
+        let pointSize: CGFloat = 14
+        let targetSize = NSSize(width: pointSize, height: pointSize)
+        guard let copy = source.copy() as? NSImage else { return source }
+        copy.size = targetSize
+        guard let cgImage = copy.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return copy
+        }
+        return NSImage(cgImage: cgImage, size: targetSize)
     }
 
     func canHandle(query: String) -> Bool {
@@ -21,14 +43,20 @@ final class PluginProvider: SearchProvider {
     }
 
     func search(query: String) -> [SearchResult] {
-        cachedQuery = query
+        // Only send a new request if the query actually changed.
+        // This prevents a feedback loop: plugin response → refreshCurrentResults → search → new
+        // request → plugin response → ...
+        if query != cachedQuery {
+            cachedQuery = query
+            cachedResults = []
 
-        let id = UUID().uuidString
-        Task {
-            await sendSearch(query: query, id: id)
+            let id = UUID().uuidString
+            Task {
+                await sendSearch(query: query, id: id)
+            }
         }
 
-        return cachedQuery == query ? cachedResults : []
+        return cachedResults
     }
 
     private func sendSearch(query: String, id: String) async {
@@ -70,6 +98,7 @@ final class PluginProvider: SearchProvider {
                 subtitle: item.subtitle,
                 icon: icon,
                 iconIsTintable: tintable,
+                badgeIcon: badgeImage,
                 action: action,
                 relevance: item.relevance,
             )

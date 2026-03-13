@@ -7,6 +7,7 @@ struct PluginManifest: Codable {
     let description: String
     let mode: PluginMode
     let keyword: String?
+    let icon: String?
 
     enum PluginMode: String, Codable {
         case longRunning = "long-running"
@@ -19,12 +20,14 @@ struct PluginManifest: Codable {
         description: String,
         mode: PluginMode = .longRunning,
         keyword: String? = nil,
+        icon: String? = nil,
     ) {
         self.name = name
         self.version = version
         self.description = description
         self.mode = mode
         self.keyword = keyword
+        self.icon = icon
     }
 
     static func load(from url: URL) throws -> PluginManifest {

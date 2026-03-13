@@ -106,6 +106,8 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
 @MainActor
 final class ResultCellView: NSTableCellView {
     private let iconView = NSImageView()
+    private let badgeBackground = BadgeBackgroundView()
+    private let badgeView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
 
@@ -123,6 +125,14 @@ final class ResultCellView: NSTableCellView {
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.imageScaling = .scaleProportionallyDown
         addSubview(iconView)
+
+        badgeBackground.translatesAutoresizingMaskIntoConstraints = false
+        badgeBackground.isHidden = true
+        addSubview(badgeBackground)
+
+        badgeView.translatesAutoresizingMaskIntoConstraints = false
+        badgeView.imageScaling = .scaleProportionallyDown
+        badgeBackground.addSubview(badgeView)
 
         let textStack = NSStackView()
         textStack.translatesAutoresizingMaskIntoConstraints = false
@@ -143,11 +153,28 @@ final class ResultCellView: NSTableCellView {
         subtitleLabel.maximumNumberOfLines = 1
         textStack.addArrangedSubview(subtitleLabel)
 
+        let badgeBackgroundSize: CGFloat = 16
+        let badgeIconSize: CGFloat = 12
+
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
             iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 28),
             iconView.heightAnchor.constraint(equalToConstant: 28),
+
+            badgeBackground.widthAnchor.constraint(equalToConstant: badgeBackgroundSize),
+            badgeBackground.heightAnchor.constraint(equalToConstant: badgeBackgroundSize),
+            badgeBackground.trailingAnchor.constraint(
+                equalTo: iconView.trailingAnchor, constant: 4,
+            ),
+            badgeBackground.bottomAnchor.constraint(
+                equalTo: iconView.bottomAnchor, constant: 4,
+            ),
+
+            badgeView.widthAnchor.constraint(equalToConstant: badgeIconSize),
+            badgeView.heightAnchor.constraint(equalToConstant: badgeIconSize),
+            badgeView.centerXAnchor.constraint(equalTo: badgeBackground.centerXAnchor),
+            badgeView.centerYAnchor.constraint(equalTo: badgeBackground.centerYAnchor),
 
             textStack.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             textStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
@@ -160,7 +187,32 @@ final class ResultCellView: NSTableCellView {
         iconView.contentTintColor = result.iconIsTintable ? .secondaryLabelColor : nil
         titleLabel.stringValue = result.title
         subtitleLabel.stringValue = result.subtitle
+
+        if let badge = result.badgeIcon {
+            badgeView.image = badge
+            badgeView.contentTintColor = nil
+            badgeBackground.isHidden = false
+        } else {
+            badgeView.image = nil
+            badgeBackground.isHidden = true
+        }
+
         setAccessibilityLabel("\(result.title), \(result.subtitle)")
+    }
+}
+
+// MARK: - Badge Background View
+
+@MainActor
+private final class BadgeBackgroundView: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        let circle = NSBezierPath(ovalIn: bounds)
+        NSColor.windowBackgroundColor.setFill()
+        circle.fill()
+        NSColor.separatorColor.setStroke()
+        circle.lineWidth = 0.5
+        circle.stroke()
     }
 }
 

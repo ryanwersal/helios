@@ -11,6 +11,7 @@ struct SearchResult {
     let subtitle: String
     let icon: NSImage?
     let iconIsTintable: Bool
+    let badgeIcon: NSImage?
     let action: SearchResultAction
     let relevance: Double
 
@@ -19,6 +20,7 @@ struct SearchResult {
         subtitle: String,
         icon: NSImage?,
         iconIsTintable: Bool = true,
+        badgeIcon: NSImage? = nil,
         action: SearchResultAction,
         relevance: Double,
     ) {
@@ -26,6 +28,7 @@ struct SearchResult {
         self.subtitle = subtitle
         self.icon = icon
         self.iconIsTintable = iconIsTintable
+        self.badgeIcon = badgeIcon
         self.action = action
         self.relevance = relevance
     }

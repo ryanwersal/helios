@@ -64,5 +64,31 @@ struct PluginManifestTests {
         )
         #expect(manifest.mode == .longRunning)
         #expect(manifest.keyword == nil)
+        #expect(manifest.icon == nil)
+    }
+
+    @Test
+    func `parses icon field`() throws {
+        let yaml = """
+        name: Firefox Bookmarks
+        version: "1.0"
+        description: Search Firefox bookmarks
+        mode: long-running
+        icon: /Applications/Firefox.app
+        """
+        let manifest = try YAMLDecoder().decode(PluginManifest.self, from: yaml)
+        #expect(manifest.icon == "/Applications/Firefox.app")
+    }
+
+    @Test
+    func `icon is optional`() throws {
+        let yaml = """
+        name: Test Plugin
+        version: "0.1"
+        description: A test
+        mode: long-running
+        """
+        let manifest = try YAMLDecoder().decode(PluginManifest.self, from: yaml)
+        #expect(manifest.icon == nil)
     }
 }

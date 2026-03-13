@@ -30,12 +30,65 @@ final class PluginManager {
         if let bundledDir = Self.bundledPluginsDirectory {
             await loadPlugins(from: bundledDir)
         }
+
+        // In debug builds, load plugins from the source tree using executables from the build
+        // directory. This allows `swift run` to pick up plugins without a full `mise run build`.
+        #if DEBUG
+            if let devDir = Self.devPluginsDirectory, let buildDir = Self.debugBuildDirectory {
+                await loadPlugins(from: devDir) { pluginDir in
+                    buildDir.appendingPathComponent(pluginDir.lastPathComponent)
+                }
+            }
+        #endif
+
         await loadPlugins(from: pluginsDirectory)
     }
 
-    private func loadPlugins(from directory: URL) async {
+    #if DEBUG
+        /// The source `Plugins/` directory adjacent to the Swift package root.
+        private static var devPluginsDirectory: URL? {
+            // Bundle.main.executableURL for `swift run` is inside `.build/debug/`.
+            // Walk up to find the package root that contains a `Plugins` directory.
+            guard let execURL = Bundle.main.executableURL else { return nil }
+            var dir = execURL.deletingLastPathComponent()
+            for _ in 0 ..< 5 {
+                let candidate = dir.appendingPathComponent("Plugins")
+                if FileManager.default.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
+                dir = dir.deletingLastPathComponent()
+            }
+            return nil
+        }
+
+        /// The `.build/debug` directory where `swift build` places plugin executables.
+        private static var debugBuildDirectory: URL? {
+            guard let execURL = Bundle.main.executableURL else { return nil }
+            let dir = execURL.deletingLastPathComponent()
+            guard dir.lastPathComponent == "debug" else { return nil }
+            return dir
+        }
+    #endif
+
+    /// Loads plugins from a directory. By default, expects each subdirectory to contain a `plugin`
+    /// executable. Pass `resolveExecutable` to override how the executable URL is determined.
+    private func loadPlugins(
+        from directory: URL,
+        resolveExecutable: ((URL) -> URL)? = nil,
+    ) async {
+        let candidates = discoverPlugins(in: directory, resolveExecutable: resolveExecutable)
+        guard !candidates.isEmpty else { return }
+
+        let launched = await launchPlugins(candidates)
+        registerProviders(launched)
+    }
+
+    private func discoverPlugins(
+        in directory: URL,
+        resolveExecutable: ((URL) -> URL)?,
+    ) -> [(manifest: PluginManifest, executableURL: URL)] {
         let fileManager = FileManager.default
-        guard fileManager.fileExists(atPath: directory.path) else { return }
+        guard fileManager.fileExists(atPath: directory.path) else { return [] }
 
         let entries: [URL]
         do {
@@ -45,16 +98,15 @@ final class PluginManager {
             )
         } catch {
             NSLog("[Helios] Failed to scan plugins directory: %@", error.localizedDescription)
-            return
+            return []
         }
 
-        let loadedNames = Set(providers.map(\.manifest.name))
-
+        var candidates: [(manifest: PluginManifest, executableURL: URL)] = []
         for entry in entries {
             guard isDirectory(entry) else { continue }
 
             let manifestURL = entry.appendingPathComponent("manifest.yaml")
-            let executableURL = entry.appendingPathComponent("plugin")
+            let executableURL = resolveExecutable?(entry) ?? entry.appendingPathComponent("plugin")
 
             guard fileManager.fileExists(atPath: manifestURL.path),
                   fileManager.fileExists(atPath: executableURL.path),
@@ -64,20 +116,12 @@ final class PluginManager {
             do {
                 let manifest = try PluginManifest.load(from: manifestURL)
 
-                if loadedNames.contains(manifest.name) {
+                if providers.contains(where: { $0.manifest.name == manifest.name }) {
                     NSLog("[Helios] Skipping duplicate plugin: %@", manifest.name)
                     continue
                 }
 
-                let process = PluginProcess(name: manifest.name, executableURL: executableURL)
-                try await process.launch()
-
-                let provider = PluginProvider(manifest: manifest, process: process)
-                provider.onResultsUpdated = { [weak self] in
-                    self?.onResultsUpdated?()
-                }
-                providers.append(provider)
-                NSLog("[Helios] Loaded plugin: %@", manifest.name)
+                candidates.append((manifest, executableURL))
             } catch {
                 NSLog(
                     "[Helios] Failed to load plugin '%@': %@",
@@ -85,6 +129,53 @@ final class PluginManager {
                     error.localizedDescription,
                 )
             }
+        }
+        return candidates
+    }
+
+    /// Launch all plugin processes concurrently so slow initializers don't block the rest.
+    private func launchPlugins(
+        _ candidates: [(manifest: PluginManifest, executableURL: URL)],
+    ) async -> [(PluginManifest, PluginProcess)] {
+        await withTaskGroup(of: (PluginManifest, PluginProcess)?.self) { group in
+            for (manifest, executableURL) in candidates {
+                group.addTask {
+                    let process = PluginProcess(name: manifest.name, executableURL: executableURL)
+                    do {
+                        try await process.launch()
+                        return (manifest, process)
+                    } catch {
+                        NSLog(
+                            "[Helios] Failed to launch plugin '%@': %@",
+                            manifest.name,
+                            error.localizedDescription,
+                        )
+                        return nil
+                    }
+                }
+            }
+
+            var results: [(PluginManifest, PluginProcess)] = []
+            for await result in group {
+                if let result { results.append(result) }
+            }
+            return results
+        }
+    }
+
+    private func registerProviders(_ launched: [(PluginManifest, PluginProcess)]) {
+        for (manifest, process) in launched {
+            guard !providers.contains(where: { $0.manifest.name == manifest.name }) else {
+                NSLog("[Helios] Skipping duplicate plugin: %@", manifest.name)
+                continue
+            }
+
+            let provider = PluginProvider(manifest: manifest, process: process)
+            provider.onResultsUpdated = { [weak self] in
+                self?.onResultsUpdated?()
+            }
+            providers.append(provider)
+            NSLog("[Helios] Loaded plugin: %@", manifest.name)
         }
     }
 
