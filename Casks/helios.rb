@@ -9,6 +9,8 @@ cask "helios" do
 
   depends_on macos: ">= :sonoma"
 
+  no_quarantine true
+
   app "Helios.app"
 
   zap trash: [
