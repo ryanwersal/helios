@@ -59,7 +59,7 @@ run = """
 set -euo pipefail
 
 TAG="${GITHUB_REF_NAME:?GITHUB_REF_NAME must be set}"
-gh release create "$TAG" Helios.app.zip --title "$TAG"
+gh release create "$TAG" Helios.app.zip --title "$TAG" --generate-notes
 """
 
 [tasks.update-tap]
@@ -114,9 +114,13 @@ run = "swiftformat Sources Tests Plugins --lint"
 description = "Debug build with warnings as errors"
 run = "swift build -Xswiftc -warnings-as-errors"
 
+[tasks.test]
+description = "Run tests"
+run = "swift test"
+
 [tasks.check]
-description = "Format, lint, and build with warnings-as-errors"
-depends = ["format", "lint", "build-check"]
+description = "Format, lint, build with warnings-as-errors, and run tests"
+depends = ["format", "lint", "build-check", "test"]
 
 [tools]
 swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }
