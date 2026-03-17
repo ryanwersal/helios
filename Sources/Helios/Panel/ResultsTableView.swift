@@ -12,7 +12,9 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
             // Preserve selection if the previously-selected result still exists.
             if let previous = previousSelection,
                let newIndex = results.firstIndex(where: {
-                   $0.title == previous.title && $0.subtitle == previous.subtitle
+                   $0.title == previous.title
+                       && $0.subtitle == previous.subtitle
+                       && $0.action == previous.action
                })
             {
                 selectRowIndexes(IndexSet(integer: newIndex), byExtendingSelection: false)

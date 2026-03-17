@@ -1,6 +1,6 @@
 import AppKit
 
-enum SearchResultAction {
+enum SearchResultAction: Equatable {
     case openURL(URL)
     case copyToClipboard(String)
     case none

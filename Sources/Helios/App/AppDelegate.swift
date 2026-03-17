@@ -151,18 +151,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
 
     func searchFieldDidPressEnter() {
         if panel.resultsTableView.executeSelectedResult() {
+            searchTask?.cancel()
             panel.hidePanel()
         }
     }
 
     func searchFieldDidPressEscape() {
+        searchTask?.cancel()
         panel.hidePanel()
     }
 
     // MARK: - Actions
 
     @objc private func togglePanel() {
-        if !panel.isVisible {
+        if panel.isVisible {
+            searchTask?.cancel()
+        } else {
             quickLinkStore.reload()
         }
         panel.toggle()

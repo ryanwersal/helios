@@ -66,9 +66,13 @@ actor PluginProcess {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             readyContinuation = continuation
 
-            Task {
-                try await Task.sleep(for: .seconds(5))
-                self.handleReadyTimeout()
+            Task { [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+                await self?.handleReadyTimeout()
             }
         }
     }
@@ -81,25 +85,36 @@ actor PluginProcess {
     }
 
     func search(query: String, id: String) async throws -> PluginResponse {
-        try await withCheckedThrowingContinuation { continuation in
-            responseContinuations[id] = continuation
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                responseContinuations[id] = continuation
 
-            do {
-                try sendRequest(.search(query: query, id: id))
-            } catch {
-                responseContinuations.removeValue(forKey: id)
-                continuation.resume(throwing: error)
-                return
-            }
-
-            timeoutTasks[id] = Task { [weak self] in
                 do {
-                    try await Task.sleep(for: .seconds(5))
+                    try sendRequest(.search(query: query, id: id))
                 } catch {
+                    responseContinuations.removeValue(forKey: id)
+                    continuation.resume(throwing: error)
                     return
                 }
-                await self?.expireSearch(id: id)
+
+                timeoutTasks[id] = Task { [weak self] in
+                    do {
+                        try await Task.sleep(for: .seconds(5))
+                    } catch {
+                        return
+                    }
+                    await self?.expireSearch(id: id)
+                }
             }
+        } onCancel: {
+            Task { await self.cancelSearch(id: id) }
+        }
+    }
+
+    private func cancelSearch(id: String) {
+        timeoutTasks.removeValue(forKey: id)?.cancel()
+        if let continuation = responseContinuations.removeValue(forKey: id) {
+            continuation.resume(throwing: CancellationError())
         }
     }
 
@@ -172,10 +187,6 @@ actor PluginProcess {
     }
 
     private func handleTermination() {
-        if let continuation = readyContinuation {
-            readyContinuation = nil
-            continuation.resume(throwing: PluginError.crashed)
-        }
         isRunning = false
         cleanup()
     }
