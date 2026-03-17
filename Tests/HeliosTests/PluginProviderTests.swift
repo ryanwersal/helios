@@ -35,10 +35,10 @@ struct PluginProviderTests {
         #expect(!provider.canHandle(query: "ffoo"))
     }
 
-    // MARK: - search returns cached results
+    // MARK: - search returns empty for unlaunch process
 
     @Test
-    func `search returns empty when no cache`() {
+    func `search returns empty when process not running`() async {
         let manifest = PluginManifest(
             name: "Test",
             version: "1.0",
@@ -46,7 +46,7 @@ struct PluginProviderTests {
         )
         let process = PluginProcess(name: "test", executableURL: URL(fileURLWithPath: "/dev/null"))
         let provider = PluginProvider(manifest: manifest, process: process)
-        let results = provider.search(query: "hello")
+        let results = await provider.search(query: "hello")
         #expect(results.isEmpty)
     }
 

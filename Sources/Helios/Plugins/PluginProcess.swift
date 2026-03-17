@@ -8,7 +8,8 @@ actor PluginProcess {
     private var stdoutPipe: Pipe?
     private var stderrPipe: Pipe?
     private var stdoutBuffer: String = ""
-    private var responseHandlers: [String: @Sendable (PluginResponse) -> Void] = [:]
+    private var responseContinuations: [String: CheckedContinuation<PluginResponse, Error>] = [:]
+    private var timeoutTasks: [String: Task<Void, Never>] = [:]
     private var readyContinuation: CheckedContinuation<Void, Error>?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -79,13 +80,35 @@ actor PluginProcess {
         }
     }
 
-    func search(
-        query: String,
-        id: String,
-        handler: @escaping @Sendable (PluginResponse) -> Void,
-    ) throws {
-        responseHandlers[id] = handler
-        try sendRequest(.search(query: query, id: id))
+    func search(query: String, id: String) async throws -> PluginResponse {
+        try await withCheckedThrowingContinuation { continuation in
+            responseContinuations[id] = continuation
+
+            do {
+                try sendRequest(.search(query: query, id: id))
+            } catch {
+                responseContinuations.removeValue(forKey: id)
+                continuation.resume(throwing: error)
+                return
+            }
+
+            timeoutTasks[id] = Task { [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+                await self?.expireSearch(id: id)
+            }
+        }
+    }
+
+    private func expireSearch(id: String) {
+        timeoutTasks.removeValue(forKey: id)
+        if let continuation = responseContinuations.removeValue(forKey: id) {
+            NSLog("[Helios] Plugin '%@' search timed out (id: %@)", pluginName, id)
+            continuation.resume(throwing: PluginError.searchTimeout)
+        }
     }
 
     func shutdown() {
@@ -139,8 +162,11 @@ actor PluginProcess {
                 continuation.resume()
             }
         case .results:
-            if let id = response.id, let handler = responseHandlers.removeValue(forKey: id) {
-                handler(response)
+            if let id = response.id {
+                timeoutTasks.removeValue(forKey: id)?.cancel()
+                if let continuation = responseContinuations.removeValue(forKey: id) {
+                    continuation.resume(returning: response)
+                }
             }
         }
     }
@@ -163,8 +189,18 @@ actor PluginProcess {
         stderrPipe = nil
         process = nil
         isRunning = false
-        responseHandlers.removeAll()
-        readyContinuation = nil
+        for continuation in responseContinuations.values {
+            continuation.resume(throwing: PluginError.crashed)
+        }
+        responseContinuations.removeAll()
+        for task in timeoutTasks.values {
+            task.cancel()
+        }
+        timeoutTasks.removeAll()
+        if let continuation = readyContinuation {
+            readyContinuation = nil
+            continuation.resume(throwing: PluginError.crashed)
+        }
     }
 }
 
@@ -172,4 +208,5 @@ enum PluginError: Error {
     case initTimeout
     case notRunning
     case crashed
+    case searchTimeout
 }

@@ -37,9 +37,9 @@ struct QuickLinkProviderTests {
     }
 
     @Test
-    func `search returns hint when only keyword typed`() {
+    func `search returns hint when only keyword typed`() async {
         let provider = makeProvider(quicklinks: Self.testLinks)
-        let results = provider.search(query: "sc")
+        let results = await provider.search(query: "sc")
 
         #expect(results.count == 1)
         #expect(results[0].title == "Shortcut Story")
@@ -52,9 +52,9 @@ struct QuickLinkProviderTests {
     }
 
     @Test
-    func `search constructs correct URL`() {
+    func `search constructs correct URL`() async {
         let provider = makeProvider(quicklinks: Self.testLinks)
-        let results = provider.search(query: "sc 34185")
+        let results = await provider.search(query: "sc 34185")
 
         #expect(results.count == 1)
         #expect(results[0].title == "Shortcut Story: 34185")
@@ -66,9 +66,9 @@ struct QuickLinkProviderTests {
     }
 
     @Test
-    func `search URL-encodes query with spaces`() {
+    func `search URL-encodes query with spaces`() async {
         let provider = makeProvider(quicklinks: Self.testLinks)
-        let results = provider.search(query: "gh my repo")
+        let results = await provider.search(query: "gh my repo")
 
         #expect(results.count == 1)
         if case let .openURL(url) = results[0].action {
@@ -79,9 +79,9 @@ struct QuickLinkProviderTests {
     }
 
     @Test
-    func `search URL-encodes special characters`() {
+    func `search URL-encodes special characters`() async {
         let provider = makeProvider(quicklinks: Self.testLinks)
-        let results = provider.search(query: "gh foo&bar=baz")
+        let results = await provider.search(query: "gh foo&bar=baz")
 
         #expect(results.count == 1)
         if case let .openURL(url) = results[0].action {
@@ -92,18 +92,19 @@ struct QuickLinkProviderTests {
     }
 
     @Test
-    func `relevance is 10000`() {
+    func `relevance is 10000`() async {
         let provider = makeProvider(quicklinks: Self.testLinks)
-        let results = provider.search(query: "sc 123")
+        let results = await provider.search(query: "sc 123")
 
         #expect(results.count == 1)
         #expect(results[0].relevance == 10000)
     }
 
     @Test
-    func `search with no quicklinks returns empty`() {
+    func `search with no quicklinks returns empty`() async {
         let provider = makeProvider()
         #expect(!provider.canHandle(query: "sc 123"))
-        #expect(provider.search(query: "sc 123").isEmpty)
+        let results = await provider.search(query: "sc 123")
+        #expect(results.isEmpty)
     }
 }

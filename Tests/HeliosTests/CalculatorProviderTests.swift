@@ -21,35 +21,35 @@ struct CalculatorProviderTests {
     }
 
     @Test
-    func `basic arithmetic`() {
-        let results = provider.search(query: "2+2")
+    func `basic arithmetic`() async {
+        let results = await provider.search(query: "2+2")
         #expect(results.count == 1)
         #expect(results[0].title == "= 4")
     }
 
     @Test
-    func `decimal results`() {
-        let results = provider.search(query: "10/3")
+    func `decimal results`() async {
+        let results = await provider.search(query: "10/3")
         #expect(results.count == 1)
         #expect(results[0].title.hasPrefix("= 3.333"))
     }
 
     @Test
-    func percentage() {
-        let results = provider.search(query: "50%")
+    func percentage() async {
+        let results = await provider.search(query: "50%")
         #expect(results.count == 1)
         #expect(results[0].title == "= 0.5")
     }
 
     @Test
-    func `invalid expression returns empty`() {
-        let results = provider.search(query: "2++2")
+    func `invalid expression returns empty`() async {
+        let results = await provider.search(query: "2++2")
         #expect(results.isEmpty)
     }
 
     @Test
-    func `result action is copyToClipboard`() {
-        let results = provider.search(query: "5*5")
+    func `result action is copyToClipboard`() async {
+        let results = await provider.search(query: "5*5")
         #expect(results.count == 1)
         if case let .copyToClipboard(value) = results[0].action {
             #expect(value == "25")

@@ -29,7 +29,7 @@ final class UnitConversionProvider: SearchProvider {
         return type(of: fromUnit) == type(of: toUnit)
     }
 
-    func search(query: String) -> [SearchResult] {
+    func search(query: String) async -> [SearchResult] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let range = NSRange(trimmed.startIndex..., in: trimmed)
         guard let match = Self.pattern.firstMatch(in: trimmed, range: range) else { return [] }

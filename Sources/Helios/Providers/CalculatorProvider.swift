@@ -21,7 +21,7 @@ final class CalculatorProvider: SearchProvider {
         return false
     }
 
-    func search(query: String) -> [SearchResult] {
+    func search(query: String) async -> [SearchResult] {
         // Preprocess: replace common symbols
         var expr = query
             .replacingOccurrences(of: "×", with: "*")

@@ -13,7 +13,7 @@ final class QuickLinkProvider: SearchProvider {
         return store.quicklinks.contains { $0.keyword == keyword }
     }
 
-    func search(query: String) -> [SearchResult] {
+    func search(query: String) async -> [SearchResult] {
         let keyword = extractKeyword(from: query)
         guard let quicklink = store.quicklinks.first(where: { $0.keyword == keyword }) else {
             return []

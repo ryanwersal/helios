@@ -13,16 +13,4 @@ final class SearchRouter {
     func removePluginProviders() {
         providers.removeAll { $0 is PluginProvider }
     }
-
-    func search(query: String) -> [SearchResult] {
-        guard !query.isEmpty else { return [] }
-
-        var results: [SearchResult] = []
-        for provider in providers where provider.canHandle(query: query) {
-            results.append(contentsOf: provider.search(query: query))
-        }
-
-        results.sort { $0.relevance > $1.relevance }
-        return results
-    }
 }

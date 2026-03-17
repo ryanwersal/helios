@@ -3,7 +3,6 @@ import Foundation
 @MainActor
 final class PluginManager {
     private(set) var providers: [PluginProvider] = []
-    var onResultsUpdated: (() -> Void)?
 
     private let pluginsDirectory: URL
     private let isPluginDisabled: (String) -> Bool
@@ -178,9 +177,6 @@ final class PluginManager {
             }
 
             let provider = PluginProvider(manifest: manifest, process: process)
-            provider.onResultsUpdated = { [weak self] in
-                self?.onResultsUpdated?()
-            }
             providers.append(provider)
             NSLog("[Helios] Loaded plugin: %@", manifest.name)
         }

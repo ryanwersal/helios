@@ -4,8 +4,20 @@ import AppKit
 final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     var results: [SearchResult] = [] {
         didSet {
+            let previousSelection = selectedRow >= 0 && selectedRow < oldValue.count
+                ? oldValue[selectedRow] : nil
+
             reloadData()
-            if !results.isEmpty {
+
+            // Preserve selection if the previously-selected result still exists.
+            if let previous = previousSelection,
+               let newIndex = results.firstIndex(where: {
+                   $0.title == previous.title && $0.subtitle == previous.subtitle
+               })
+            {
+                selectRowIndexes(IndexSet(integer: newIndex), byExtendingSelection: false)
+                scrollRowToVisible(newIndex)
+            } else if !results.isEmpty {
                 selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
             }
         }

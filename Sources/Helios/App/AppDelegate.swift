@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var pluginManager: PluginManager!
     private var toggleMenuItem: NSMenuItem!
     private var pluginReloadTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_: Notification) {
         setupMenuBar()
@@ -53,9 +54,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         pluginManager = PluginManager(isPluginDisabled: { [weak self] name in
             self?.settingsManager.isPluginDisabled(name) ?? false
         })
-        pluginManager.onResultsUpdated = { [weak self] in
-            self?.refreshCurrentResults()
-        }
 
         settingsManager.onPluginSettingsChanged = { [weak self] in
             guard let self else { return }
@@ -96,12 +94,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         }
     }
 
-    private func refreshCurrentResults() {
-        let text = panel.searchField.stringValue
-        guard !text.isEmpty else { return }
-        searchFieldDidChange(text: text)
-    }
-
     // MARK: - Hotkey
 
     private func setupHotkey() {
@@ -128,12 +120,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     // MARK: - SearchFieldDelegate
 
     func searchFieldDidChange(text: String) {
+        searchTask?.cancel()
+
         if text.isEmpty {
             panel.showEmptyState()
-        } else {
-            let results = router.search(query: text)
-            panel.resultsTableView.results = results
-            panel.updateResultsHeight(count: results.count)
+            return
+        }
+
+        searchTask = Task {
+            var results: [SearchResult] = []
+            for provider in router.providers where provider.canHandle(query: text) {
+                let batch = await provider.search(query: text)
+                guard !Task.isCancelled else { return }
+                guard !batch.isEmpty else { continue }
+                results.append(contentsOf: batch)
+                results.sort { $0.relevance > $1.relevance }
+                panel.resultsTableView.results = results
+                panel.updateResultsHeight(count: results.count)
+            }
         }
     }
 

@@ -28,7 +28,7 @@ final class AppLauncherProvider: SearchProvider {
         true
     }
 
-    func search(query: String) -> [SearchResult] {
+    func search(query: String) async -> [SearchResult] {
         let loweredQuery = query.lowercased()
         let terms = loweredQuery.split(separator: " ")
         guard !terms.isEmpty else { return [] }

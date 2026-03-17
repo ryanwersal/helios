@@ -87,7 +87,7 @@ final class DateTimeProvider: SearchProvider {
             || Self.daysUntilPattern.firstMatch(in: trimmed, range: range) != nil
     }
 
-    func search(query: String) -> [SearchResult] {
+    func search(query: String) async -> [SearchResult] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let range = NSRange(trimmed.startIndex..., in: trimmed)
 

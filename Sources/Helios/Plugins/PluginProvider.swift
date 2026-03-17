@@ -4,9 +4,6 @@ import AppKit
 final class PluginProvider: SearchProvider {
     let manifest: PluginManifest
     private let process: PluginProcess
-    private var cachedQuery: String = ""
-    private var cachedResults: [SearchResult] = []
-    var onResultsUpdated: (() -> Void)?
 
     private(set) lazy var badgeImage: NSImage? = resolveBadgeIcon()
 
@@ -42,43 +39,27 @@ final class PluginProvider: SearchProvider {
         return true
     }
 
-    func search(query: String) -> [SearchResult] {
-        // Only send a new request if the query actually changed.
-        // This prevents a feedback loop: plugin response → refreshCurrentResults → search → new
-        // request → plugin response → ...
-        if query != cachedQuery {
-            cachedQuery = query
-            cachedResults = []
-
-            let id = UUID().uuidString
-            Task {
-                await sendSearch(query: query, id: id)
-            }
-        }
-
-        return cachedResults
-    }
-
-    private func sendSearch(query: String, id: String) async {
+    func search(query: String) async -> [SearchResult] {
+        let id = UUID().uuidString
         do {
-            try await process.search(query: query, id: id) { [weak self] response in
-                Task { @MainActor in
-                    self?.handleResponse(response, for: query)
-                }
-            }
+            let response = try await process.search(query: query, id: id)
+            return mapResponse(response)
         } catch {
-            NSLog(
-                "[Helios] Plugin '%@' search failed: %@",
-                manifest.name,
-                error.localizedDescription,
-            )
+            if !(error is CancellationError), (error as? PluginError) != .searchTimeout {
+                NSLog(
+                    "[Helios] Plugin '%@' search failed: %@",
+                    manifest.name,
+                    error.localizedDescription,
+                )
+            }
+            return []
         }
     }
 
-    private func handleResponse(_ response: PluginResponse, for query: String) {
-        guard let items = response.results else { return }
+    private func mapResponse(_ response: PluginResponse) -> [SearchResult] {
+        guard let items = response.results else { return [] }
 
-        let results = items.map { item -> SearchResult in
+        return items.map { item -> SearchResult in
             let icon = resolveIcon(item)
             let tintable = item.iconTintable ?? (item.iconSystemName != nil)
 
@@ -103,10 +84,6 @@ final class PluginProvider: SearchProvider {
                 relevance: item.relevance,
             )
         }
-
-        guard query == cachedQuery else { return }
-        cachedResults = results
-        onResultsUpdated?()
     }
 
     private func resolveIcon(_ item: PluginResultItem) -> NSImage? {
