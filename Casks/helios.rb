@@ -9,9 +9,13 @@ cask "helios" do
 
   depends_on macos: ">= :sonoma"
 
-  no_quarantine true
-
   app "Helios.app"
+
+  postflight do
+    system_command "/usr/bin/xattr",
+      args: ["-r", "-d", "com.apple.quarantine", "#{appdir}/Helios.app"],
+      sudo: false
+  end
 
   zap trash: [
     "~/Library/Caches/com.helios.launcher",
