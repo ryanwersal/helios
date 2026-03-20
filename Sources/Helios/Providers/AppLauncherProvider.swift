@@ -80,6 +80,7 @@ final class AppLauncherProvider: SearchProvider {
             URL(fileURLWithPath: "/Applications"),
             URL(fileURLWithPath: "/System/Applications"),
             URL(fileURLWithPath: "/System/Applications/Utilities"),
+            URL(fileURLWithPath: "/System/Library/CoreServices/Applications"),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
         ]
 
