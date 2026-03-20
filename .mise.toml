@@ -59,7 +59,7 @@ run = """
 set -euo pipefail
 
 TAG="${GITHUB_REF_NAME:?GITHUB_REF_NAME must be set}"
-gh release create "$TAG" Helios.app.zip --title "$TAG" --generate-notes
+git tag -l --format='%(contents)' "$TAG" | gh release create "$TAG" Helios.app.zip --title "$TAG" --notes-file -
 """
 
 [tasks.update-tap]
