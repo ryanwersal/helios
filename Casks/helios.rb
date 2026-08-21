@@ -7,6 +7,8 @@ cask "helios" do
   desc "Native macOS launcher"
   homepage "https://github.com/ryanwersal/helios"
 
+  license "Apache-2.0"
+
   depends_on macos: ">= :sonoma"
 
   app "Helios.app"
