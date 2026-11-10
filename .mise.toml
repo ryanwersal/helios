@@ -43,6 +43,9 @@ done
 # Gatekeeper requires a signature covering the full bundle, not just the executable.
 codesign --force --deep --sign - "$APP"
 
+# Exercise the packaged executable, not the build-directory resource fallback.
+"$APP/Contents/MacOS/Helios" --check-resources
+
 echo "Built $APP"
 """
 
