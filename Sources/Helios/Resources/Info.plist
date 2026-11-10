@@ -6,6 +6,8 @@
     <string>Helios</string>
     <key>CFBundleName</key>
     <string>Helios</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.helios.launcher</string>
     <key>CFBundleVersion</key>

@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var searchTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_: Notification) {
+        NSApp.applicationIconImage = BrandImages.appIcon
         setupMenuBar()
         setupPanel()
         setupRouter()
@@ -26,7 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "sun.max", accessibilityDescription: "Helios")
+            button.image = BrandImages.menuBarIcon
+            button.setAccessibilityLabel("Helios")
         }
 
         let menu = NSMenu()

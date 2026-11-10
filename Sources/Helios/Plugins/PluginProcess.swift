@@ -41,8 +41,7 @@ actor PluginProcess {
         let pluginName = pluginName
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty else { return }
-            guard let text = String(data: data, encoding: .utf8) else { return }
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
             Task { await self?.handleStdoutData(text) }
         }
 

@@ -12,6 +12,14 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp .build/release/Helios "$APP/Contents/MacOS/Helios"
 cp Sources/Helios/Resources/Info.plist "$APP/Contents/Info.plist"
+cp Sources/Helios/Resources/Branding/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+# Keep the installed app version aligned with the release and Homebrew cask.
+if [[ "${GITHUB_REF_NAME:-}" == v* ]]; then
+  VERSION="${GITHUB_REF_NAME#v}"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
+fi
 
 # Copy resource bundles
 for bundle in .build/release/*.bundle; do

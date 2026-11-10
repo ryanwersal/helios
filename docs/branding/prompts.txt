@@ -1,0 +1,11 @@
+App icon
+
+Use case: logo-brand. Create a production macOS app icon for Helios, a fast native launcher. A single inventive sculpted solar vortex emblem: three broad tapered golden flame blades curl clockwise around a small open dark center, forming a compact nearly circular sun/spiral silhouette with clear negative spaces. Bold, distinctive, readable tiny. Warm luminous amber and pale gold enamel with restrained dimensional bevels, beautiful subtle light. Centered on a deep midnight ink rounded-square macOS icon tile, tile occupies 88% of square canvas with transparent margins outside tile, smooth superellipse corners. Emblem occupies 62% of canvas. Straight-on orthographic view. Premium restrained graphic design, no tiny rays, no stars, no lettering, no text, no mockup, no extra objects, no surrounding scene. 1024x1024 square asset. Actual transparent exterior.
+
+Menu bar
+
+Use case: logo-brand. Edit the reference Helios app icon into its companion macOS menu bar template glyph. Preserve the exact three curved tapered flame blades and central opening of the solar vortex emblem and their orientation. Remove the rounded square tile and ALL shading, glow and colors. Render ONLY the three flame silhouettes as solid pure black, with truly transparent negative spaces and exterior. Simplify edge detail for excellent legibility at 18 pixels. Center the glyph with equal margins, occupy 88% of square canvas. Flat vector-like black silhouette, no tile, no text, no shadow, no gray background.
+
+Squared revision
+
+Use case: precise-object-edit. Edit the first reference image, the full color Helios app icon (not the black template). Keep the golden three-blade solar spiral emblem exactly unchanged, same color, lighting, orientation and scale. Change ONLY the outer midnight navy tile shape: square it off substantially, straight horizontal and vertical sides with tighter rounded corners about 14% of tile width radius, like a crisp native macOS rounded square rather than a cushion. Equal 6% transparent exterior margins. Preserve dark ink background, rich amber sculptural emblem and transparent exterior. No text or new elements.

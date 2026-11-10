@@ -107,9 +107,7 @@ final class AppLauncherProvider: SearchProvider {
     }
 
     private nonisolated static func scanDirectory(_ dir: URL, into found: inout [URL: AppInfo], depth: Int) {
-        guard depth < 3 else { return }
-
-        guard let entries = try? FileManager.default.contentsOfDirectory(
+        guard depth < 3, let entries = try? FileManager.default.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles],
         ) else { return }
 

@@ -181,10 +181,8 @@ final class DateTimeProvider: SearchProvider {
         let toCity = String(query[toRange])
 
         guard let fromTZ = TimezoneMap.timezone(for: fromCity),
-              let toTZ = TimezoneMap.timezone(for: toCity)
-        else { return [] }
-
-        guard let date = parseTime(timeStr, in: fromTZ) else { return [] }
+              let toTZ = TimezoneMap.timezone(for: toCity),
+              let date = parseTime(timeStr, in: fromTZ) else { return [] }
 
         Self.convertTimeFormatter.timeZone = toTZ
         let converted = Self.convertTimeFormatter.string(from: date)

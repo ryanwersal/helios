@@ -11,13 +11,17 @@ private final class MockLoginItemService: LoginItemService {
 
     func register() throws {
         registerCallCount += 1
-        if shouldThrow { throw MockError.failed }
+        if shouldThrow {
+            throw MockError.failed
+        }
         isEnabled = true
     }
 
     func unregister() throws {
         unregisterCallCount += 1
-        if shouldThrow { throw MockError.failed }
+        if shouldThrow {
+            throw MockError.failed
+        }
         isEnabled = false
     }
 

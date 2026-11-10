@@ -125,10 +125,18 @@ enum KeyCodeNames {
 enum ModifierSymbols {
     static func displayString(for modifiers: UInt32) -> String {
         var symbols = ""
-        if modifiers & UInt32(controlKey) != 0 { symbols += "\u{2303}" } // ⌃
-        if modifiers & UInt32(optionKey) != 0 { symbols += "\u{2325}" } // ⌥
-        if modifiers & UInt32(shiftKey) != 0 { symbols += "\u{21E7}" } // ⇧
-        if modifiers & UInt32(cmdKey) != 0 { symbols += "\u{2318}" } // ⌘
+        if modifiers & UInt32(controlKey) != 0 {
+            symbols += "\u{2303}"
+        } // ⌃
+        if modifiers & UInt32(optionKey) != 0 {
+            symbols += "\u{2325}"
+        } // ⌥
+        if modifiers & UInt32(shiftKey) != 0 {
+            symbols += "\u{21E7}"
+        } // ⇧
+        if modifiers & UInt32(cmdKey) != 0 {
+            symbols += "\u{2318}"
+        } // ⌘
         return symbols
     }
 
@@ -143,19 +151,35 @@ enum ModifierSymbols {
 
     static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
         var carbon: UInt32 = 0
-        if flags.contains(.control) { carbon |= UInt32(controlKey) }
-        if flags.contains(.option) { carbon |= UInt32(optionKey) }
-        if flags.contains(.shift) { carbon |= UInt32(shiftKey) }
-        if flags.contains(.command) { carbon |= UInt32(cmdKey) }
+        if flags.contains(.control) {
+            carbon |= UInt32(controlKey)
+        }
+        if flags.contains(.option) {
+            carbon |= UInt32(optionKey)
+        }
+        if flags.contains(.shift) {
+            carbon |= UInt32(shiftKey)
+        }
+        if flags.contains(.command) {
+            carbon |= UInt32(cmdKey)
+        }
         return carbon
     }
 
     static func cocoaModifiers(from carbonMods: UInt32) -> NSEvent.ModifierFlags {
         var flags: NSEvent.ModifierFlags = []
-        if carbonMods & UInt32(controlKey) != 0 { flags.insert(.control) }
-        if carbonMods & UInt32(optionKey) != 0 { flags.insert(.option) }
-        if carbonMods & UInt32(shiftKey) != 0 { flags.insert(.shift) }
-        if carbonMods & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        if carbonMods & UInt32(controlKey) != 0 {
+            flags.insert(.control)
+        }
+        if carbonMods & UInt32(optionKey) != 0 {
+            flags.insert(.option)
+        }
+        if carbonMods & UInt32(shiftKey) != 0 {
+            flags.insert(.shift)
+        }
+        if carbonMods & UInt32(cmdKey) != 0 {
+            flags.insert(.command)
+        }
         return flags
     }
 

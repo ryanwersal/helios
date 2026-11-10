@@ -163,7 +163,9 @@ final class PluginManager {
 
             var results: [(PluginManifest, PluginProcess)] = []
             for await result in group {
-                if let result { results.append(result) }
+                if let result {
+                    results.append(result)
+                }
             }
             return results
         }
