@@ -7,6 +7,14 @@ final class UnitConversionProvider: SearchProvider {
         #"^(\d+(?:\.\d+)?\s+)?(.+?)\s+(?:in|to)\s+(.+)$"#,
     )
 
+    private struct Conversion {
+        let amount: String
+        let source: String
+        let destination: String
+        let sourceUnit: Dimension
+        let destinationUnit: Dimension
+    }
+
     private static func makeRegex(_ pattern: String) -> NSRegularExpression {
         do {
             return try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
@@ -16,38 +24,39 @@ final class UnitConversionProvider: SearchProvider {
     }
 
     func canHandle(query: String) -> Bool {
+        Self.matches(query)
+    }
+
+    static func matches(_ query: String) -> Bool {
+        conversion(for: query) != nil
+    }
+
+    private static func conversion(for query: String) -> Conversion? {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let range = NSRange(trimmed.startIndex..., in: trimmed)
-        guard let match = Self.pattern.firstMatch(in: trimmed, range: range) else { return false }
+        guard let match = pattern.firstMatch(in: trimmed, range: range) else { return nil }
 
-        let fromStr = extractGroup(2, from: match, in: trimmed)
-        let toStr = extractGroup(3, from: match, in: trimmed)
-        guard let fromUnit = UnitMap.unit(for: fromStr),
-              let toUnit = UnitMap.unit(for: toStr)
-        else { return false }
+        let source = extractGroup(2, from: match, in: trimmed)
+        let destination = extractGroup(3, from: match, in: trimmed)
+        guard let sourceUnit = UnitMap.unit(for: source),
+              let destinationUnit = UnitMap.unit(for: destination),
+              type(of: sourceUnit) == type(of: destinationUnit)
+        else { return nil }
 
-        return type(of: fromUnit) == type(of: toUnit)
+        return Conversion(
+            amount: extractGroup(1, from: match, in: trimmed),
+            source: source,
+            destination: destination,
+            sourceUnit: sourceUnit,
+            destinationUnit: destinationUnit,
+        )
     }
 
     func search(query: String) async -> [SearchResult] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        guard let match = Self.pattern.firstMatch(in: trimmed, range: range) else { return [] }
-
-        let numberStr = extractGroup(1, from: match, in: trimmed)
-        let fromStr = extractGroup(2, from: match, in: trimmed)
-        let toStr = extractGroup(3, from: match, in: trimmed)
-
-        let value = Double(numberStr.trimmingCharacters(in: .whitespaces)) ?? 1.0
-        let isBareQuery = numberStr.isEmpty
-
-        guard let fromUnit = UnitMap.unit(for: fromStr),
-              let toUnit = UnitMap.unit(for: toStr),
-              type(of: fromUnit) == type(of: toUnit)
-        else { return [] }
-
-        let measurement = Measurement(value: value, unit: fromUnit)
-        let converted = measurement.converted(to: toUnit)
+        guard let conversion = Self.conversion(for: query) else { return [] }
+        let value = Double(conversion.amount.trimmingCharacters(in: .whitespaces)) ?? 1.0
+        let measurement = Measurement(value: value, unit: conversion.sourceUnit)
+        let converted = measurement.converted(to: conversion.destinationUnit)
         let formatted = formatNumber(converted.value)
 
         let icon = NSImage(
@@ -55,14 +64,14 @@ final class UnitConversionProvider: SearchProvider {
             accessibilityDescription: "Unit conversion",
         )
 
-        let subtitle = if isBareQuery {
-            "1 \(fromStr) = \(formatNumber(Measurement(value: 1, unit: fromUnit).converted(to: toUnit).value)) \(toStr)"
+        let subtitle = if conversion.amount.isEmpty {
+            "1 \(conversion.source) = \(formatted) \(conversion.destination)"
         } else {
-            "\(formatNumber(value)) \(fromStr) → \(toStr)"
+            "\(formatNumber(value)) \(conversion.source) → \(conversion.destination)"
         }
 
         return [SearchResult(
-            title: "= \(formatted) \(toStr)",
+            title: "= \(formatted) \(conversion.destination)",
             subtitle: subtitle,
             icon: icon,
             action: .copyToClipboard(formatted),
@@ -70,7 +79,7 @@ final class UnitConversionProvider: SearchProvider {
         )]
     }
 
-    private func extractGroup(_ index: Int, from match: NSTextCheckingResult, in str: String) -> String {
+    private static func extractGroup(_ index: Int, from match: NSTextCheckingResult, in str: String) -> String {
         guard let range = Range(match.range(at: index), in: str) else { return "" }
         return String(str[range])
     }

@@ -24,6 +24,10 @@ final class AppLauncherProvider: SearchProvider {
         }
     }
 
+    init(apps: [AppInfo]) {
+        self.apps = apps
+    }
+
     func canHandle(query _: String) -> Bool {
         true
     }

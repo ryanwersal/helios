@@ -85,7 +85,9 @@ final class DateTimeProvider: SearchProvider {
         guard Self.clockPrefixPattern.firstMatch(in: query, range: range) != nil else {
             return conversionEngine.hasClockLikeConversion(query)
         }
-        return lowercased.contains(" to ") || lowercased.contains(" in ") || lowercased.contains(" from ")
+        let hasConversionKeyword = lowercased.contains(" to ") || lowercased.contains(" in ")
+            || lowercased.contains(" from ")
+        return hasConversionKeyword && !UnitConversionProvider.matches(query)
     }
 
     // MARK: - Current time

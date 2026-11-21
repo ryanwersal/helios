@@ -2,7 +2,7 @@ import AppKit
 import Carbon
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panel: SearchPanel!
     private var router: SearchRouter!
@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     private var pluginManager: PluginManager!
     private var toggleMenuItem: NSMenuItem!
     private var pluginReloadTask: Task<Void, Never>?
-    private var searchTask: Task<Void, Never>?
+    private var searchController: SearchController!
 
     func applicationDidFinishLaunching(_: Notification) {
         NSApp.applicationIconImage = BrandImages.appIcon
@@ -73,9 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
             quickLinkStore: quickLinkStore,
             pluginManager: pluginManager,
         )
-        panel.searchField.searchDelegate = self
         panel.setSettingsHandler { [weak self] in
-            self?.panel.showSettings()
+            self?.openSettings()
         }
     }
 
@@ -89,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
             DateTimeProvider(),
             AppLauncherProvider(),
         ])
+        searchController = SearchController(panel: panel, router: router)
 
         Task {
             await pluginManager.loadPlugins()
@@ -119,55 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
         toggleMenuItem.keyEquivalent = ModifierSymbols.keyEquivalentCharacter(for: config.keyCode) ?? ""
     }
 
-    // MARK: - SearchFieldDelegate
-
-    func searchFieldDidChange(text: String) {
-        searchTask?.cancel()
-
-        if text.isEmpty {
-            panel.showEmptyState()
-            return
-        }
-
-        searchTask = Task {
-            var results: [SearchResult] = []
-            for provider in router.providers where provider.canHandle(query: text) {
-                let batch = await provider.search(query: text)
-                guard !Task.isCancelled else { return }
-                guard !batch.isEmpty else { continue }
-                results.append(contentsOf: batch)
-                results.sort { $0.relevance > $1.relevance }
-                panel.resultsTableView.results = results
-                panel.updateResultsHeight(count: results.count)
-            }
-        }
-    }
-
-    func searchFieldDidPressArrowDown() {
-        panel.resultsTableView.moveSelectionDown()
-    }
-
-    func searchFieldDidPressArrowUp() {
-        panel.resultsTableView.moveSelectionUp()
-    }
-
-    func searchFieldDidPressEnter() {
-        if panel.resultsTableView.executeSelectedResult() {
-            searchTask?.cancel()
-            panel.hidePanel()
-        }
-    }
-
-    func searchFieldDidPressEscape() {
-        searchTask?.cancel()
-        panel.hidePanel()
-    }
-
     // MARK: - Actions
 
     @objc private func togglePanel() {
         if panel.isVisible {
-            searchTask?.cancel()
+            searchController.cancelSearch()
         } else {
             quickLinkStore.reload()
         }
@@ -175,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SearchFieldDelegate {
     }
 
     @objc private func openSettings() {
+        searchController.cancelSearch()
         if !panel.isVisible {
             panel.showPanel()
         }

@@ -69,9 +69,11 @@ final class ResultsTableView: NSTableView, NSTableViewDataSource, NSTableViewDel
     }
 
     @discardableResult
-    func executeSelectedResult() -> Bool {
+    func executeSelectedResult(
+        using execute: (SearchResultAction) -> Bool = { SearchResultActionHandler.execute($0) },
+    ) -> Bool {
         guard selectedRow >= 0, selectedRow < results.count else { return false }
-        return SearchResultActionHandler.execute(results[selectedRow].action)
+        return execute(results[selectedRow].action)
     }
 
     // MARK: - Data Source
