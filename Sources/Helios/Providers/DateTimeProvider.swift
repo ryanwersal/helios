@@ -4,14 +4,69 @@ import Foundation
 @MainActor
 final class DateTimeProvider: SearchProvider {
     private static let timeInPattern = makeRegex(#"^time\s+in\s+(.+)$"#)
-    private static let convertPattern = makeRegex(
-        #"^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(\S+)\s+in\s+(.+)$"#,
-    )
     private static let cityTimeInPattern = makeRegex(#"^(.+?)\s+time\s+in\s+(.+)$"#)
     private static let fromNowPattern = makeRegex(
         #"^(\d+)\s+(minute|hour|day|week|month|year)s?\s+from\s+now$"#,
     )
     private static let daysUntilPattern = makeRegex(#"^days?\s+until\s+(.+)$"#)
+    private static let clockPrefixPattern = makeRegex(
+        #"^(?:convert\s+)?(?:\d{4}-\d{2}-\d{2}\s+)?\d{1,2}(?::\d{1,2})?\s*(?:am|pm)?\b"#,
+    )
+
+    private let now: @MainActor () -> Date
+    private let calendar: Calendar
+    private let locale: Locale
+    private let conversionEngine: TimeConversionEngine
+    private let conversionPresenter: TimeConversionPresenter
+
+    init(
+        now: @escaping @MainActor () -> Date = { Date() },
+        calendar: Calendar = Calendar(identifier: .gregorian),
+        locale: Locale = Locale(identifier: "en_US_POSIX"),
+    ) {
+        self.now = now
+        self.calendar = calendar
+        self.locale = locale
+        conversionEngine = TimeConversionEngine(calendar: calendar, locale: locale)
+        conversionPresenter = TimeConversionPresenter(calendar: calendar, locale: locale)
+    }
+
+    func canHandle(query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        return Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.timeInPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.fromNowPattern.firstMatch(in: trimmed, range: range) != nil
+            || Self.daysUntilPattern.firstMatch(in: trimmed, range: range) != nil
+            || isConversionIntent(trimmed)
+    }
+
+    func search(query: String) async -> [SearchResult] {
+        results(for: query)
+    }
+
+    /// Synchronous entry point shared by launcher searches and the packaged-app smoke command.
+    func results(for query: String) -> [SearchResult] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+
+        if let match = Self.fromNowPattern.firstMatch(in: trimmed, range: range) {
+            return handleFromNow(query: trimmed, match: match)
+        }
+        if let match = Self.daysUntilPattern.firstMatch(in: trimmed, range: range) {
+            return handleDaysUntil(query: trimmed, match: match)
+        }
+        if let match = Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) {
+            return handleCityTimeIn(query: trimmed, match: match)
+        }
+        if let match = Self.timeInPattern.firstMatch(in: trimmed, range: range) {
+            return handleTimeIn(query: trimmed, match: match)
+        }
+        if isConversionIntent(trimmed) {
+            return handleConversion(query: trimmed)
+        }
+        return []
+    }
 
     private static func makeRegex(_ pattern: String) -> NSRegularExpression {
         do {
@@ -21,239 +76,131 @@ final class DateTimeProvider: SearchProvider {
         }
     }
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a (ZZZZZ)"
-        return formatter
-    }()
-
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter
-    }()
-
-    private static let convertTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
-
-    private static let fullDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter
-    }()
-
-    private static let fullDateTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .short
-        return formatter
-    }()
-
-    private static let parseFormatters: [(format: String, formatter: DateFormatter)] = {
-        let formats = ["h:mm a", "h:mma", "ha", "h a", "HH:mm", "H:mm"]
-        return formats.map { format in
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = format
-            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            return (format, dateFormatter)
+    private func isConversionIntent(_ query: String) -> Bool {
+        let lowercased = query.lowercased()
+        if lowercased.hasPrefix("convert ") {
+            return true
         }
-    }()
-
-    private static let dateParseFormatters: [(format: String, formatter: DateFormatter)] = {
-        let formats = [
-            "MMM d, yyyy", "MMM d yyyy", "MMMM d, yyyy", "MMMM d yyyy",
-            "yyyy-MM-dd", "MM/dd/yyyy", "MM/dd/yy", "d MMM yyyy",
-            "MMM d", "MMMM d",
-        ]
-        return formats.map { format in
-            let dateFormatter = DateFormatter()
-            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            dateFormatter.dateFormat = format
-            return (format, dateFormatter)
+        let range = NSRange(query.startIndex..., in: query)
+        guard Self.clockPrefixPattern.firstMatch(in: query, range: range) != nil else {
+            return false
         }
-    }()
-
-    func canHandle(query: String) -> Bool {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        return Self.convertPattern.firstMatch(in: trimmed, range: range) != nil
-            || Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) != nil
-            || Self.timeInPattern.firstMatch(in: trimmed, range: range) != nil
-            || Self.fromNowPattern.firstMatch(in: trimmed, range: range) != nil
-            || Self.daysUntilPattern.firstMatch(in: trimmed, range: range) != nil
+        return lowercased.contains(" to ") || lowercased.contains(" in ") || lowercased.contains(" from ")
     }
 
-    func search(query: String) async -> [SearchResult] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-
-        if let match = Self.convertPattern.firstMatch(in: trimmed, range: range) {
-            return handleConvert(query: trimmed, match: match)
-        }
-        if let match = Self.cityTimeInPattern.firstMatch(in: trimmed, range: range) {
-            return handleCityTimeIn(query: trimmed, match: match)
-        }
-        if let match = Self.timeInPattern.firstMatch(in: trimmed, range: range) {
-            return handleTimeIn(query: trimmed, match: match)
-        }
-        if let match = Self.fromNowPattern.firstMatch(in: trimmed, range: range) {
-            return handleFromNow(query: trimmed, match: match)
-        }
-        if let match = Self.daysUntilPattern.firstMatch(in: trimmed, range: range) {
-            return handleDaysUntil(query: trimmed, match: match)
-        }
-
-        return []
-    }
-
-    // MARK: - "time in <city>"
+    // MARK: - Current time
 
     private func handleTimeIn(query: String, match: NSTextCheckingResult) -> [SearchResult] {
         guard let cityRange = Range(match.range(at: 1), in: query) else { return [] }
         let city = String(query[cityRange])
-        guard let zone = TimezoneMap.timezone(for: city) else { return [] }
-
-        Self.timeFormatter.timeZone = zone
-        let timeStr = Self.timeFormatter.string(from: Date())
-
-        Self.dayFormatter.timeZone = zone
-        let dayStr = Self.dayFormatter.string(from: Date())
-
-        let icon = NSImage(systemSymbolName: "clock", accessibilityDescription: "Time")
-        let resultText = "\(timeStr) — \(dayStr)"
-
-        return [SearchResult(
-            title: resultText,
-            subtitle: "\(city.capitalized) (\(zone.identifier))",
-            icon: icon,
-            action: .copyToClipboard(resultText),
-            relevance: 10000,
-        )]
+        return currentTimeResult(for: city, subtitlePrefix: city.capitalized, iconName: "clock")
     }
-
-    // MARK: - "<city> time in <city>"
 
     private func handleCityTimeIn(query: String, match: NSTextCheckingResult) -> [SearchResult] {
         guard let fromRange = Range(match.range(at: 1), in: query),
               let toRange = Range(match.range(at: 2), in: query)
         else { return [] }
 
-        let fromCity = String(query[fromRange])
-        let toCity = String(query[toRange])
+        let source = String(query[fromRange])
+        let destination = String(query[toRange])
+        guard case let .resolved(sourceZone) = TimezoneMap.resolve(source) else {
+            return zoneDiagnostic(for: source)
+        }
+        return currentTimeResult(
+            for: destination,
+            subtitlePrefix: "\(source.capitalized) (\(sourceZone.identifier)) "
+                + "→ \(destination.capitalized)",
+            iconName: "globe",
+        )
+    }
 
-        guard let fromTZ = TimezoneMap.timezone(for: fromCity),
-              let toTZ = TimezoneMap.timezone(for: toCity)
-        else { return [] }
-
-        let now = Date()
-        Self.timeFormatter.timeZone = toTZ
-        let timeStr = Self.timeFormatter.string(from: now)
-
-        Self.dayFormatter.timeZone = toTZ
-        let dayStr = Self.dayFormatter.string(from: now)
-
-        let icon = NSImage(systemSymbolName: "globe", accessibilityDescription: "Timezone")
-        let resultText = "\(timeStr) — \(dayStr)"
-
+    private func currentTimeResult(
+        for zoneInput: String,
+        subtitlePrefix: String,
+        iconName: String,
+    ) -> [SearchResult] {
+        guard case let .resolved(zone) = TimezoneMap.resolve(zoneInput) else {
+            return zoneDiagnostic(for: zoneInput)
+        }
+        let referenceDate = now()
+        let time = format(referenceDate, format: "h:mm a (XXXXX)", timeZone: zone)
+        let day = format(referenceDate, format: "EEEE, MMM d", timeZone: zone)
+        let resultText = "\(time) — \(day)"
         return [SearchResult(
             title: resultText,
-            subtitle: "\(fromCity.capitalized) → \(toCity.capitalized) (\(fromTZ.identifier) → \(toTZ.identifier))",
-            icon: icon,
+            subtitle: "\(subtitlePrefix) (\(zone.identifier))",
+            icon: NSImage(systemSymbolName: iconName, accessibilityDescription: "Time"),
             action: .copyToClipboard(resultText),
             relevance: 10000,
         )]
     }
 
-    // MARK: - "<time> <tz> in <tz>"
+    // MARK: - Conversion
 
-    private func handleConvert(query: String, match: NSTextCheckingResult) -> [SearchResult] {
-        guard let timeRange = Range(match.range(at: 1), in: query),
-              let fromRange = Range(match.range(at: 2), in: query),
-              let toRange = Range(match.range(at: 3), in: query)
-        else { return [] }
-
-        let timeStr = String(query[timeRange]).trimmingCharacters(in: .whitespaces)
-        let fromCity = String(query[fromRange])
-        let toCity = String(query[toRange])
-
-        guard let fromTZ = TimezoneMap.timezone(for: fromCity),
-              let toTZ = TimezoneMap.timezone(for: toCity),
-              let date = parseTime(timeStr, in: fromTZ) else { return [] }
-
-        Self.convertTimeFormatter.timeZone = toTZ
-        let converted = Self.convertTimeFormatter.string(from: date)
-
-        let icon = NSImage(systemSymbolName: "globe", accessibilityDescription: "Timezone")
-        let resultText = "\(converted) in \(toCity.capitalized)"
-
-        return [SearchResult(
-            title: resultText,
-            subtitle: "\(timeStr) \(fromCity.uppercased()) → \(toCity.capitalized) (\(toTZ.identifier))",
-            icon: icon,
-            action: .copyToClipboard(resultText),
-            relevance: 10000,
-        )]
+    private func handleConversion(query: String) -> [SearchResult] {
+        switch conversionEngine.convert(query: query, referenceDate: now()) {
+        case let .conversion(conversion):
+            conversionPresenter.results(for: conversion)
+        case let .diagnostic(diagnostic):
+            [conversionPresenter.diagnosticResult(diagnostic)]
+        }
     }
 
-    // MARK: - "<N> <unit> from now"
+    private func zoneDiagnostic(for input: String) -> [SearchResult] {
+        let diagnostic: TimeConversionDiagnostic? = switch TimezoneMap.resolve(input) {
+        case let .ambiguous(alternatives): .ambiguousZone(input, alternatives)
+        case .unknown: .unknownZone(input)
+        case .resolved: nil
+        }
+        guard let diagnostic else { return [] }
+        return [conversionPresenter.diagnosticResult(diagnostic)]
+    }
+
+    // MARK: - Relative dates and countdowns
 
     private func handleFromNow(query: String, match: NSTextCheckingResult) -> [SearchResult] {
         guard let numRange = Range(match.range(at: 1), in: query),
               let unitRange = Range(match.range(at: 2), in: query),
-              let num = Int(query[numRange])
+              let number = Int(query[numRange])
         else { return [] }
 
         let unit = String(query[unitRange]).lowercased()
-        let component: Calendar.Component
-        switch unit {
-        case "minute": component = .minute
-        case "hour": component = .hour
-        case "day": component = .day
-        case "week": component = .weekOfYear
-        case "month": component = .month
-        case "year": component = .year
-        default: return []
+        let component: Calendar.Component? = switch unit {
+        case "minute": .minute
+        case "hour": .hour
+        case "day": .day
+        case "week": .weekOfYear
+        case "month": .month
+        case "year": .year
+        default: nil
         }
-
-        guard let future = Calendar.current.date(byAdding: component, value: num, to: Date()) else {
+        guard let component, let future = calendar.date(byAdding: component, value: number, to: now()) else {
             return []
         }
-
-        let formatter = component == .minute || component == .hour
-            ? Self.fullDateTimeFormatter
-            : Self.fullDateFormatter
-        let resultText = formatter.string(from: future)
-
-        let icon = NSImage(systemSymbolName: "calendar", accessibilityDescription: "Date")
-
+        let resultText = format(
+            future,
+            dateStyle: .full,
+            timeStyle: component == .minute || component == .hour ? .short : .none,
+        )
         return [SearchResult(
             title: resultText,
-            subtitle: "\(num) \(unit)\(num == 1 ? "" : "s") from now",
-            icon: icon,
+            subtitle: "\(number) \(unit)\(number == 1 ? "" : "s") from now",
+            icon: NSImage(systemSymbolName: "calendar", accessibilityDescription: "Date"),
             action: .copyToClipboard(resultText),
             relevance: 10000,
         )]
     }
 
-    // MARK: - "days until <date>"
-
     private func handleDaysUntil(query: String, match: NSTextCheckingResult) -> [SearchResult] {
         guard let dateRange = Range(match.range(at: 1), in: query) else { return [] }
-        let dateStr = String(query[dateRange])
+        let dateString = String(query[dateRange])
+        guard let targetDate = parseDate(dateString) else { return [] }
 
-        guard let targetDate = parseDate(dateStr) else { return [] }
-
-        let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: Date())
-        let startOfTarget = calendar.startOfDay(for: targetDate)
-        let components = calendar.dateComponents([.day], from: startOfToday, to: startOfTarget)
-
-        guard let days = components.day else { return [] }
-
+        let start = calendar.startOfDay(for: now())
+        let target = calendar.startOfDay(for: targetDate)
+        guard let days = calendar.dateComponents([.day], from: start, to: target).day else {
+            return []
+        }
         let resultText = if days == 0 {
             "Today!"
         } else if days == 1 {
@@ -263,53 +210,62 @@ final class DateTimeProvider: SearchProvider {
         } else {
             "\(abs(days)) days ago"
         }
-
-        let icon = NSImage(systemSymbolName: "calendar.badge.clock", accessibilityDescription: "Countdown")
-
         return [SearchResult(
             title: resultText,
-            subtitle: "Days until \(dateStr)",
-            icon: icon,
+            subtitle: "Days until \(dateString)",
+            icon: NSImage(systemSymbolName: "calendar.badge.clock", accessibilityDescription: "Countdown"),
             action: .copyToClipboard(resultText),
             relevance: 10000,
         )]
     }
 
-    // MARK: - Helpers
-
-    private func parseTime(_ str: String, in zone: TimeZone) -> Date? {
-        for (_, formatter) in Self.parseFormatters {
-            formatter.timeZone = zone
-            if let date = formatter.date(from: str) {
-                let calendar = Calendar.current
-                var comps = calendar.dateComponents(in: zone, from: Date())
-                let timeComps = calendar.dateComponents(in: zone, from: date)
-                comps.hour = timeComps.hour
-                comps.minute = timeComps.minute
-                comps.second = 0
-                return calendar.date(from: comps)
+    private func parseDate(_ input: String) -> Date? {
+        let formats = [
+            "MMM d, yyyy", "MMM d yyyy", "MMMM d, yyyy", "MMMM d yyyy",
+            "yyyy-MM-dd", "MM/dd/yyyy", "MM/dd/yy", "d MMM yyyy", "MMM d", "MMMM d",
+        ]
+        for format in formats {
+            let formatter = DateFormatter()
+            formatter.locale = locale
+            formatter.calendar = calendar
+            formatter.dateFormat = format
+            formatter.isLenient = false
+            if let parsed = formatter.date(from: input) {
+                guard !format.contains("y") else { return parsed }
+                var components = calendar.dateComponents([.month, .day], from: parsed)
+                components.year = calendar.component(.year, from: now())
+                if let thisYear = calendar.date(from: components),
+                   thisYear < calendar.startOfDay(for: now())
+                {
+                    components.year = (components.year ?? 0) + 1
+                }
+                return calendar.date(from: components)
             }
         }
         return nil
     }
 
-    private func parseDate(_ str: String) -> Date? {
-        for (format, formatter) in Self.dateParseFormatters {
-            if let date = formatter.date(from: str) {
-                if !format.contains("y") {
-                    let calendar = Calendar.current
-                    var comps = calendar.dateComponents([.month, .day], from: date)
-                    comps.year = calendar.component(.year, from: Date())
-                    if let thisYear = calendar.date(from: comps),
-                       thisYear < calendar.startOfDay(for: Date())
-                    {
-                        comps.year = (comps.year ?? 0) + 1
-                    }
-                    return calendar.date(from: comps)
-                }
-                return date
-            }
-        }
-        return nil
+    // MARK: - Formatting
+
+    private func format(_ date: Date, format: String, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
+
+    private func format(
+        _ date: Date,
+        dateStyle: DateFormatter.Style,
+        timeStyle: DateFormatter.Style,
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.calendar = calendar
+        formatter.dateStyle = dateStyle
+        formatter.timeStyle = timeStyle
+        return formatter.string(from: date)
     }
 }

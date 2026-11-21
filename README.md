@@ -14,6 +14,33 @@ Helios lives in your menu bar and activates with a global hotkey. Type to search
 - **Firefox bookmarks** — search your bookmarks directly
 - **Quick links** — keyword-triggered URL shortcuts (e.g. `gh swift` opens a GitHub search)
 
+### Time conversions
+
+Use ordinary phrases with either a 12-hour or 24-hour clock:
+
+```text
+3pm in New York to London
+convert 15:30 from Berlin to Tokyo
+3pm est in pst
+```
+
+Add an ISO calendar date when rollover or daylight-saving behavior needs to be
+reproducible. Helios shows the destination date when the conversion crosses a
+day boundary:
+
+```text
+2026-01-15 11:30pm from America/Los_Angeles to Asia/Tokyo
+```
+
+Common city aliases such as `New York`, `NYC`, and `Tokyo` work alongside raw
+IANA identifiers such as `America/New_York`. Globally ambiguous abbreviations
+such as `CST` and `IST` produce guidance instead of choosing a region silently;
+use a city or IANA identifier to disambiguate them.
+
+Local times skipped by a spring-forward transition are rejected with a valid
+correction. If a fall-back transition repeats a local time, Helios returns both
+possibilities, labeled with their timezone abbreviation and UTC offset.
+
 ## Install
 
 ### Homebrew

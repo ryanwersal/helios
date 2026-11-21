@@ -45,6 +45,18 @@ codesign --force --deep --sign - "$APP"
 
 # Exercise the packaged executable, not the build-directory resource fallback.
 "$APP/Contents/MacOS/Helios" --check-resources
+"$APP/Contents/MacOS/Helios" --smoke-time-conversion \
+  "2026-01-15 11:30pm from America/Los_Angeles to Asia/Tokyo"
+if "$APP/Contents/MacOS/Helios" --smoke-time-conversion "3pm from CST to London"; then
+  echo "Expected ambiguous-zone smoke query to return diagnostic status" >&2
+  exit 1
+else
+  smoke_status=$?
+  if [ "$smoke_status" -ne 2 ]; then
+    echo "Ambiguous-zone smoke query returned unexpected status: $smoke_status" >&2
+    exit "$smoke_status"
+  fi
+fi
 
 echo "Built $APP"
 """
@@ -111,15 +123,15 @@ echo "Updated tap to ${VERSION} (sha256: ${SHA256})"
 
 [tasks.lint]
 description = "Lint Swift files"
-run = "swiftlint lint --strict Sources Tests Plugins"
+run = '"$(mise which swiftlint)" lint --strict Sources Tests Plugins'
 
 [tasks.format]
 description = "Format Swift files"
-run = "swiftformat Sources Tests Plugins"
+run = '"$(mise which swiftformat)" Sources Tests Plugins'
 
 [tasks.format-check]
 description = "Check Swift formatting without modifying files"
-run = "swiftformat Sources Tests Plugins --lint"
+run = '"$(mise which swiftformat)" Sources Tests Plugins --lint'
 
 [tasks.build-check]
 description = "Debug build with warnings as errors"
@@ -134,5 +146,5 @@ description = "Format, lint, build with warnings-as-errors, and run tests"
 depends = ["format", "lint", "build-check", "test"]
 
 [tools]
-swiftformat = { version = "latest", no_app = "true", rename_exe = "swiftformat" }
-swiftlint = "latest"
+swiftformat = { version = "0.64.7", no_app = "true", rename_exe = "swiftformat" }
+swiftlint = "0.65.1"

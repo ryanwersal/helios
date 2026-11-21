@@ -1,6 +1,21 @@
 import Foundation
 
 enum TimezoneMap {
+    struct Alternative: Equatable, Sendable {
+        let label: String
+        let identifier: String
+    }
+
+    enum Resolution: Equatable, Sendable {
+        case resolved(TimeZone)
+        case ambiguous([Alternative])
+        case unknown
+    }
+
+    static let abbreviationAliases: Set<String> = [
+        "aest", "akst", "cet", "eet", "est", "gmt", "hst", "jst", "kst", "mst", "nzst", "pst", "utc",
+    ]
+
     /// Map of common city names and abbreviations to IANA timezone identifiers.
     static let cityToTimezone: [String: String] = [
         // North America
@@ -97,7 +112,6 @@ enum TimezoneMap {
 
         // Timezone abbreviations
         "est": "America/New_York",
-        "cst": "America/Chicago",
         "mst": "America/Denver",
         "pst": "America/Los_Angeles",
         "gmt": "Europe/London",
@@ -106,20 +120,52 @@ enum TimezoneMap {
         "eet": "Europe/Athens",
         "jst": "Asia/Tokyo",
         "kst": "Asia/Seoul",
-        "ist": "Asia/Kolkata",
         "aest": "Australia/Sydney",
         "nzst": "Pacific/Auckland",
         "hst": "Pacific/Honolulu",
         "akst": "America/Anchorage",
     ]
 
+    /// Abbreviations that have several common meanings around the world.
+    /// Requiring an explicit city or identifier avoids a plausible but wrong conversion.
+    static let ambiguousAbbreviations: [String: [Alternative]] = [
+        "cst": [
+            Alternative(label: "Chicago", identifier: "America/Chicago"),
+            Alternative(label: "Shanghai", identifier: "Asia/Shanghai"),
+            Alternative(label: "Havana", identifier: "America/Havana"),
+        ],
+        "ist": [
+            Alternative(label: "Kolkata", identifier: "Asia/Kolkata"),
+            Alternative(label: "Dublin", identifier: "Europe/Dublin"),
+            Alternative(label: "Jerusalem", identifier: "Asia/Jerusalem"),
+        ],
+    ]
+
+    private static let caseInsensitiveIdentifiers: [String: String] = Dictionary(
+        uniqueKeysWithValues: TimeZone.knownTimeZoneIdentifiers.map {
+            ($0.lowercased(), $0)
+        },
+    )
+
+    static func resolve(_ input: String) -> Resolution {
+        let key = input.lowercased().trimmingCharacters(in: .whitespaces)
+        if let alternatives = ambiguousAbbreviations[key] {
+            return .ambiguous(alternatives)
+        }
+        if let identifier = cityToTimezone[key], let zone = TimeZone(identifier: identifier) {
+            return .resolved(zone)
+        }
+        if let identifier = caseInsensitiveIdentifiers[key], let zone = TimeZone(identifier: identifier) {
+            return .resolved(zone)
+        }
+        return .unknown
+    }
+
     /// Look up a timezone for a city name or abbreviation (case-insensitive).
     static func timezone(for input: String) -> TimeZone? {
-        let key = input.lowercased().trimmingCharacters(in: .whitespaces)
-        if let identifier = cityToTimezone[key] {
-            return TimeZone(identifier: identifier)
+        if case let .resolved(zone) = resolve(input) {
+            return zone
         }
-        // Try as a raw IANA identifier
-        return TimeZone(identifier: input)
+        return nil
     }
 }

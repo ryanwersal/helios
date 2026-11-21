@@ -31,4 +31,20 @@ struct TimezoneMapTests {
         let zone = TimezoneMap.timezone(for: "alaska")
         #expect(zone?.identifier == "America/Anchorage")
     }
+
+    @Test
+    func `raw IANA identifiers resolve case insensitively`() {
+        let zone = TimezoneMap.timezone(for: "america/new_york")
+        #expect(zone?.identifier == "America/New_York")
+    }
+
+    @Test(arguments: ["CST", "ist"])
+    func `global abbreviations require disambiguation`(input: String) {
+        guard case let .ambiguous(alternatives) = TimezoneMap.resolve(input) else {
+            Issue.record("Expected \(input) to be ambiguous")
+            return
+        }
+        #expect(alternatives.count == 3)
+        #expect(TimezoneMap.timezone(for: input) == nil)
+    }
 }

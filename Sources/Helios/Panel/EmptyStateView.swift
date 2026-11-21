@@ -2,11 +2,11 @@ import AppKit
 
 @MainActor
 final class EmptyStateView: NSView {
-    private static let hints: [(icon: String, text: String)] = [
+    static let hints: [(icon: String, text: String)] = [
         ("app.badge", "Type to search and launch apps"),
         ("book", "Search Firefox bookmarks by title or URL"),
         ("equal.circle", "Calculate math: 2+2, 15% of 200, sqrt(144)"),
-        ("clock", "Check time: \"time in tokyo\", \"3 hours from now\""),
+        ("clock", "Convert time: \"3pm in New York to London\""),
     ]
 
     override init(frame frameRect: NSRect) {
