@@ -36,15 +36,21 @@ struct SearchResult {
 
 @MainActor
 enum SearchResultActionHandler {
-    static func execute(_ action: SearchResultAction) {
+    static func execute(
+        _ action: SearchResultAction,
+        openURL: (URL) -> Bool = { NSWorkspace.shared.open($0) },
+        copyToClipboard: (String) -> Bool = { text in
+            NSPasteboard.general.clearContents()
+            return NSPasteboard.general.setString(text, forType: .string)
+        },
+    ) -> Bool {
         switch action {
         case let .openURL(url):
-            NSWorkspace.shared.open(url)
+            openURL(url)
         case let .copyToClipboard(text):
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+            copyToClipboard(text)
         case .none:
-            break
+            false
         }
     }
 }

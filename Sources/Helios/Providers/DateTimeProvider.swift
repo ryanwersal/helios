@@ -83,7 +83,7 @@ final class DateTimeProvider: SearchProvider {
         }
         let range = NSRange(query.startIndex..., in: query)
         guard Self.clockPrefixPattern.firstMatch(in: query, range: range) != nil else {
-            return false
+            return conversionEngine.hasClockLikeConversion(query)
         }
         return lowercased.contains(" to ") || lowercased.contains(" in ") || lowercased.contains(" from ")
     }

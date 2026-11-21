@@ -36,7 +36,7 @@ enum TimeConversionDiagnostic: Equatable, Sendable {
     case nonexistentLocalTime(
         request: TimeConversionRequest,
         sourceZone: TimeZone,
-        correction: DateComponents,
+        correction: Date?,
     )
 }
 
@@ -48,6 +48,11 @@ enum TimeConversionOutcome: Equatable, Sendable {
 /// Parses and resolves timezone conversions without depending on AppKit presentation.
 struct TimeConversionEngine: Sendable {
     private static let dateTimePattern = #"(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?"#
+    /// A mistyped meridiem still looks like a clock. Exclude attached length units such as km.
+    private static let clockLikeRegex = makeRegex(
+        pattern: #"^(?:\d{4}-\d{2}-\d{2}\s+)?\d+(?::\d*)?(?:\s*(?:[ap][a-z]?|(?![cdkmnu]m)[a-z]m))?$"#,
+        options: .caseInsensitive,
+    )
     private static let everydayPattern = makeRegex(
         pattern: #"^(?:convert\s+)?(.+?)\s+in\s+(.+?)\s+to\s+(.+)$"#,
         options: .caseInsensitive,
@@ -64,6 +69,7 @@ struct TimeConversionEngine: Sendable {
         pattern: "^\(dateTimePattern)$",
         options: .caseInsensitive,
     )
+    private static let offsetSearchWindow: TimeInterval = 2 * 24 * 60 * 60
 
     let calendar: Calendar
     let locale: Locale
@@ -76,16 +82,21 @@ struct TimeConversionEngine: Sendable {
         self.locale = locale
     }
 
+    /// Recognize a complete conversion even when the clock fails strict validation.
+    func hasClockLikeConversion(_ query: String) -> Bool {
+        guard let fields = conversionFields(in: query), !fields.isLegacy else { return false }
+        let clock = fields.dateTime
+        return Self.clockLikeRegex.firstMatch(in: clock, range: NSRange(clock.startIndex..., in: clock)) != nil
+    }
+
     func convert(query: String, referenceDate: Date) -> TimeConversionOutcome {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let fields = conversionFields(in: trimmed) else {
             return .diagnostic(.malformed)
         }
-        let sourceInput = fields.source.trimmingCharacters(in: .whitespaces)
-        let destinationInput = fields.destination.trimmingCharacters(in: .whitespaces)
         let sourceZone: TimeZone
         let destinationZone: TimeZone
-        switch resolveZones(source: sourceInput, destination: destinationInput) {
+        switch resolveZones(in: fields) {
         case let .success(source, destination):
             sourceZone = source
             destinationZone = destination
@@ -103,8 +114,8 @@ struct TimeConversionEngine: Sendable {
         }
         let request = TimeConversionRequest(
             originalTime: fields.dateTime,
-            sourceInput: sourceInput,
-            destinationInput: destinationInput,
+            sourceInput: fields.source,
+            destinationInput: fields.destination,
             year: parsed.year,
             month: parsed.month,
             day: parsed.day,
@@ -123,7 +134,18 @@ struct TimeConversionEngine: Sendable {
         }
     }
 
-    private func resolveZones(source: String, destination: String) -> ResolvedZones {
+    private func resolveZones(in fields: ConversionFields) -> ResolvedZones {
+        let source = fields.source
+        let destination = fields.destination
+        // The undated "clock est in pst" syntax has always meant New York to Los Angeles.
+        // All other forms require explicit zones for these abbreviations.
+        if fields.isLegacy, !fields.dateTime.contains("-"),
+           source.lowercased() == "est", destination.lowercased() == "pst",
+           let eastern = TimeZone(identifier: "America/New_York"),
+           let pacific = TimeZone(identifier: "America/Los_Angeles")
+        {
+            return .success(eastern, pacific)
+        }
         let sourceZone: TimeZone
         switch TimezoneMap.resolve(source) {
         case let .resolved(zone): sourceZone = zone
@@ -176,10 +198,12 @@ struct TimeConversionEngine: Sendable {
         if let fields = fields(matching: Self.fromPattern, in: query) {
             return fields
         }
-        return fields(matching: Self.legacyPattern, in: query)
+        return fields(matching: Self.legacyPattern, in: query, isLegacy: true)
     }
 
-    private func fields(matching regex: NSRegularExpression, in query: String) -> ConversionFields? {
+    private func fields(
+        matching regex: NSRegularExpression, in query: String, isLegacy: Bool = false,
+    ) -> ConversionFields? {
         let range = NSRange(query.startIndex..., in: query)
         guard let match = regex.firstMatch(in: query, range: range),
               let dateTimeRange = Range(match.range(at: 1), in: query),
@@ -189,8 +213,9 @@ struct TimeConversionEngine: Sendable {
 
         return ConversionFields(
             dateTime: String(query[dateTimeRange]).trimmingCharacters(in: .whitespaces),
-            source: String(query[sourceRange]),
-            destination: String(query[destinationRange]),
+            source: String(query[sourceRange]).trimmingCharacters(in: .whitespaces),
+            destination: String(query[destinationRange]).trimmingCharacters(in: .whitespaces),
+            isLegacy: isLegacy,
         )
     }
 
@@ -272,8 +297,8 @@ struct TimeConversionEngine: Sendable {
         guard let localReference = utcDate(for: request) else { return [] }
 
         var offsets = Set<Int>()
-        for seconds in stride(from: -172_800, through: 172_800, by: 3600) {
-            offsets.insert(zone.secondsFromGMT(for: localReference.addingTimeInterval(TimeInterval(seconds))))
+        for seconds in stride(from: -Self.offsetSearchWindow, through: Self.offsetSearchWindow, by: 3600) {
+            offsets.insert(zone.secondsFromGMT(for: localReference.addingTimeInterval(seconds)))
         }
 
         var zoneCalendar = calendar
@@ -309,41 +334,24 @@ struct TimeConversionEngine: Sendable {
         ))
     }
 
-    private func nextValidLocalTime(after request: TimeConversionRequest, in zone: TimeZone) -> DateComponents {
-        guard let localReference = utcDate(for: request) else { return DateComponents() }
-        for minutes in 1 ... 180 {
-            let candidate = localReference.addingTimeInterval(TimeInterval(minutes * 60))
-            var utcCalendar = calendar
-            utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
-            let values = utcCalendar.dateComponents([.year, .month, .day, .hour, .minute], from: candidate)
-            guard let year = values.year,
-                  let month = values.month,
-                  let day = values.day,
-                  let hour = values.hour,
-                  let minute = values.minute
-            else { continue }
-            let candidateRequest = TimeConversionRequest(
-                originalTime: request.originalTime,
-                sourceInput: request.sourceInput,
-                destinationInput: request.destinationInput,
-                year: year,
-                month: month,
-                day: day,
-                hour: hour,
-                minute: minute,
-                hasExplicitDate: request.hasExplicitDate,
-            )
-            if !matchingInstants(for: candidateRequest, in: zone).isEmpty {
-                return values
+    private func nextValidLocalTime(after request: TimeConversionRequest, in zone: TimeZone) -> Date? {
+        guard let localReference = utcDate(for: request) else { return nil }
+        var cursor = localReference - Self.offsetSearchWindow
+        let limit = localReference + Self.offsetSearchWindow
+        // Foundation reports offset transitions here, including changes to the standard offset.
+        while let transition = zone.nextDaylightSavingTimeTransition(after: cursor), transition <= limit {
+            let gapStart = transition + TimeInterval(zone.secondsFromGMT(for: transition - 1))
+            let gapEnd = transition + TimeInterval(zone.secondsFromGMT(for: transition))
+            if gapStart <= localReference, localReference < gapEnd {
+                var localCalendar = calendar
+                localCalendar.timeZone = zone
+                // The query grammar has minute precision, while historical transitions can have seconds.
+                let second = localCalendar.component(.second, from: transition)
+                return transition + TimeInterval((60 - second) % 60)
             }
+            cursor = transition
         }
-        return DateComponents(
-            year: request.year,
-            month: request.month,
-            day: request.day,
-            hour: request.hour,
-            minute: request.minute,
-        )
+        return nil
     }
 
     private static func utcOffset(_ seconds: Int) -> String {
@@ -367,6 +375,7 @@ private struct ConversionFields {
     let dateTime: String
     let source: String
     let destination: String
+    let isLegacy: Bool
 }
 
 private struct ParsedLocalTime {

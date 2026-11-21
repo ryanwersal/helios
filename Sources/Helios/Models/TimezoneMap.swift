@@ -12,12 +12,9 @@ enum TimezoneMap {
         case unknown
     }
 
-    static let abbreviationAliases: Set<String> = [
-        "aest", "akst", "cet", "eet", "est", "gmt", "hst", "jst", "kst", "mst", "nzst", "pst", "utc",
-    ]
+    static let abbreviationAliases = Set(unambiguousAbbreviations.keys).union(ambiguousAbbreviations.keys)
 
-    /// Map of common city names and abbreviations to IANA timezone identifiers.
-    static let cityToTimezone: [String: String] = [
+    private static let cityToTimezone: [String: String] = [
         // North America
         "new york": "America/New_York",
         "nyc": "America/New_York",
@@ -27,6 +24,8 @@ enum TimezoneMap {
         "washington": "America/New_York",
         "dc": "America/New_York",
         "chicago": "America/Chicago",
+        "adak": "America/Adak",
+        "havana": "America/Havana",
         "dallas": "America/Chicago",
         "houston": "America/Chicago",
         "denver": "America/Denver",
@@ -74,6 +73,8 @@ enum TimezoneMap {
 
         // Asia
         "dubai": "Asia/Dubai",
+        "jerusalem": "Asia/Jerusalem",
+        "manila": "Asia/Manila",
         "mumbai": "Asia/Kolkata",
         "delhi": "Asia/Kolkata",
         "bangalore": "Asia/Kolkata",
@@ -104,58 +105,92 @@ enum TimezoneMap {
 
         // Africa
         "cairo": "Africa/Cairo",
+        "algiers": "Africa/Algiers",
+        "tripoli": "Africa/Tripoli",
         "lagos": "Africa/Lagos",
         "nairobi": "Africa/Nairobi",
         "johannesburg": "Africa/Johannesburg",
         "cape town": "Africa/Johannesburg",
         "casablanca": "Africa/Casablanca",
-
-        // Timezone abbreviations
-        "est": "America/New_York",
-        "mst": "America/Denver",
-        "pst": "America/Los_Angeles",
-        "gmt": "Europe/London",
-        "utc": "UTC",
-        "cet": "Europe/Paris",
-        "eet": "Europe/Athens",
-        "jst": "Asia/Tokyo",
-        "kst": "Asia/Seoul",
-        "aest": "Australia/Sydney",
-        "nzst": "Pacific/Auckland",
-        "hst": "Pacific/Honolulu",
-        "akst": "America/Anchorage",
     ]
 
-    /// Abbreviations that have several common meanings around the world.
-    /// Requiring an explicit city or identifier avoids a plausible but wrong conversion.
-    static let ambiguousAbbreviations: [String: [Alternative]] = [
+    private static let unambiguousAbbreviations: [String: String] = [
+        "utc": "UTC",
+        "jst": "Asia/Tokyo",
+        "kst": "Asia/Seoul",
+    ]
+
+    /// Require explicit zones when an abbreviation can denote places or a standard offset
+    /// with different rules, even when those choices agree on the date in the query.
+    private static let ambiguousAbbreviations: [String: [Alternative]] = [
+        "aest": [
+            Alternative(label: "Sydney", identifier: "Australia/Sydney"),
+            Alternative(label: "Brisbane", identifier: "Australia/Brisbane"),
+        ],
+        "akst": [
+            Alternative(label: "Anchorage", identifier: "America/Anchorage"),
+            Alternative(label: "Fixed UTC−09:00", identifier: "Etc/GMT+9"),
+        ],
+        "cet": [
+            Alternative(label: "Paris", identifier: "Europe/Paris"),
+            Alternative(label: "Algiers", identifier: "Africa/Algiers"),
+        ],
         "cst": [
             Alternative(label: "Chicago", identifier: "America/Chicago"),
             Alternative(label: "Shanghai", identifier: "Asia/Shanghai"),
             Alternative(label: "Havana", identifier: "America/Havana"),
+        ],
+        "eet": [
+            Alternative(label: "Athens", identifier: "Europe/Athens"),
+            Alternative(label: "Tripoli", identifier: "Africa/Tripoli"),
+        ],
+        "est": [
+            Alternative(label: "New York", identifier: "America/New_York"),
+            Alternative(label: "Fixed UTC−05:00", identifier: "Etc/GMT+5"),
+        ],
+        "gmt": [
+            Alternative(label: "London", identifier: "Europe/London"),
+            Alternative(label: "Fixed UTC+00:00", identifier: "UTC"),
+        ],
+        "hst": [
+            Alternative(label: "Honolulu", identifier: "Pacific/Honolulu"),
+            Alternative(label: "Adak", identifier: "America/Adak"),
         ],
         "ist": [
             Alternative(label: "Kolkata", identifier: "Asia/Kolkata"),
             Alternative(label: "Dublin", identifier: "Europe/Dublin"),
             Alternative(label: "Jerusalem", identifier: "Asia/Jerusalem"),
         ],
+        "mst": [
+            Alternative(label: "Denver", identifier: "America/Denver"),
+            Alternative(label: "Phoenix", identifier: "America/Phoenix"),
+        ],
+        "nzst": [
+            Alternative(label: "Auckland", identifier: "Pacific/Auckland"),
+            Alternative(label: "Fixed UTC+12:00", identifier: "Etc/GMT-12"),
+        ],
+        "pst": [
+            Alternative(label: "Los Angeles", identifier: "America/Los_Angeles"),
+            Alternative(label: "Manila", identifier: "Asia/Manila"),
+            Alternative(label: "Fixed UTC−08:00", identifier: "Etc/GMT+8"),
+        ],
     ]
 
-    private static let caseInsensitiveIdentifiers: [String: String] = Dictionary(
-        uniqueKeysWithValues: TimeZone.knownTimeZoneIdentifiers.map {
-            ($0.lowercased(), $0)
-        },
-    )
+    private static let caseInsensitiveIdentifiers: [String: String] = {
+        // Foundation omits the fixed-offset Etc identifiers from its list of known zones.
+        let alternatives = ambiguousAbbreviations.values.flatMap { $0.map(\.identifier) }
+        let identifiers = Set(TimeZone.knownTimeZoneIdentifiers).union(alternatives)
+        return Dictionary(uniqueKeysWithValues: identifiers.map { ($0.lowercased(), $0) })
+    }()
 
     static func resolve(_ input: String) -> Resolution {
         let key = input.lowercased().trimmingCharacters(in: .whitespaces)
         if let alternatives = ambiguousAbbreviations[key] {
             return .ambiguous(alternatives)
         }
-        if let identifier = cityToTimezone[key], let zone = TimeZone(identifier: identifier) {
-            return .resolved(zone)
-        }
-        if let identifier = caseInsensitiveIdentifiers[key], let zone = TimeZone(identifier: identifier) {
+        if let identifier = unambiguousAbbreviations[key] ?? cityToTimezone[key] ?? caseInsensitiveIdentifiers[key],
+           let zone = TimeZone(identifier: identifier)
+        {
             return .resolved(zone)
         }
         return .unknown

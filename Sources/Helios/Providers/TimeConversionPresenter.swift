@@ -110,13 +110,19 @@ struct TimeConversionPresenter {
     private func nonexistentTimeContent(
         request: TimeConversionRequest,
         sourceZone: TimeZone,
-        correction: DateComponents,
+        correction: Date?,
     ) -> (title: String, subtitle: String) {
         let inputDate = dateText(request.year, request.month, request.day)
-        let correctedDate = dateText(correction.year, correction.month, correction.day)
-        let correctedTime = queryClockText(correction.hour, correction.minute)
         let title = "\(clockText(request.hour, request.minute)) does not exist "
             + "in \(sourceZone.identifier) on \(inputDate)"
+        guard let correction else {
+            return (title, "The clocks jump forward. Try a later local time.")
+        }
+        var localCalendar = calendar
+        localCalendar.timeZone = sourceZone
+        let local = localCalendar.dateComponents([.year, .month, .day, .hour, .minute], from: correction)
+        let correctedDate = dateText(local.year, local.month, local.day)
+        let correctedTime = queryClockText(local.hour, local.minute)
         let subtitle = "The clocks jump forward. Try “\(correctedDate) \(correctedTime) "
             + "from \(sourceZone.identifier) to \(request.destinationInput)”."
         return (title, subtitle)

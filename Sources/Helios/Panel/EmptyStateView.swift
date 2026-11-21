@@ -7,6 +7,8 @@ final class EmptyStateView: NSView {
         ("book", "Search Firefox bookmarks by title or URL"),
         ("equal.circle", "Calculate math: 2+2, 15% of 200, sqrt(144)"),
         ("clock", "Convert time: \"3pm in New York to London\""),
+        ("calendar", "Add a date: \"2026-01-15 15:30 from Berlin to Tokyo\""),
+        ("globe", "Choose a city or IANA zone: Berlin or Europe/Berlin"),
     ]
 
     override init(frame frameRect: NSRect) {
@@ -24,7 +26,7 @@ final class EmptyStateView: NSView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 10
+        stack.spacing = 8
         addSubview(stack)
 
         for hint in Self.hints {
